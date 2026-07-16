@@ -10,3 +10,6 @@ python-dotenv
 nbclient
 jupyter
 scikit-learn
+sqlalchemy
+pymysql
+openpyxl

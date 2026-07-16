@@ -7,7 +7,9 @@ class AgentState(TypedDict):
     Annotated [List, Operator.add] tells LangGraph to append new items to the list rather than
     overwriting it when a node updates the state. 
     """
-
+    #Details about how to load the data (e.g. {"type": "mysql", "host": "..."} or {"type": "csv", "path": "..."})
+    source_config: Dict[str, Any]   
+    
     #Path to the CSV/EXCEL file being analyzed
     dataset_path : str
 

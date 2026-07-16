@@ -1,5 +1,6 @@
 from langgraph.graph import StateGraph, END
 from app.agents.state import AgentState
+from app.agents.ingestion_node import ingestion_node
 from app.agents.reporter import reporter_node
 from app.agents.profiler import profiler_node
 from app.agents.cleaner import cleaner_node
@@ -71,13 +72,15 @@ def create_eda_graph():
     """Builds the full multi-agent EDA pipeline with deterministic routing (no LLM orchestrator)."""
     workflow = StateGraph(AgentState)
     
-    # 1. Add ALL of our agents (wrapped with step tracking)
+    # 1. Add our special Ingestion node
+    workflow.add_node("ingestion", ingestion_node)
+    
+    # 2. Add ALL of our code-generating agents (wrapped with step tracking)
     for agent_name in PIPELINE_ORDER:
         workflow.add_node(agent_name, step_tracker(agent_name))
     
     workflow.add_node("critic", critic_node)
     workflow.add_node("executor", executor_node)
-    
     # 2. Every code-generating agent goes to the Executor
     for agent_name in PIPELINE_ORDER:
         if agent_name != "reporter":
@@ -92,8 +95,10 @@ def create_eda_graph():
     # 4. When the Critic fixes code, send it back to the executor
     workflow.add_edge("critic", "executor")
     
-    # 5. Pipeline starts with the profiler
-    workflow.set_entry_point("profiler")
+    # 5. Set the starting point to our new Ingestion node
+    workflow.set_entry_point("ingestion")
     
-    app = workflow.compile()
-    return app
+    # After ingestion, go straight to the profiler
+    workflow.add_edge("ingestion", PIPELINE_ORDER[0])
+
+    return workflow.compile()
