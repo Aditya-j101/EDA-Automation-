@@ -25,7 +25,7 @@ def advanced_analyst_node(state: AgentState):
     - Do NOT import sklearn. Only use pandas, numpy, and scipy.
     
     The code should:
-    1. Load 'data/cleaned_data.csv'.
+    1. Load '{dataset_path}'.
     
     2. TARGET DETECTION: Look for a likely target variable by checking for:
        - Binary columns (exactly 2 unique values)

@@ -29,7 +29,7 @@ def analyst_node(state:AgentState):
     - Only run scipy.stats tests on numeric arrays, never on DataFrames with mixed types.
     
     The code should:
-    1. Load the 'data/cleaned_data.csv' dataset.
+    1. Load the '{dataset_path}'.
     2. Perform Univariate Analysis: Calculate skewness, kurtosis, and distribution shapes for continuous variables using `df.select_dtypes(include='number')`.
     3. Perform Bivariate & Correlation Analysis: Calculate non-linear relationships (e.g., Spearman, Kendall) for continuous data, and Cramer's V for categorical correlations.
     4. Perform Hypothesis Testing with Effect Sizes: Automatically identify suitable variables and perform at least two Hypothesis Tests (e.g., T-Test/ANOVA or Chi-Square). Calculate and print the Effect Size (e.g., Cohen's d or Cramer's V).

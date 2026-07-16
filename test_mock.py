@@ -286,7 +286,11 @@ def run_mock_pipeline():
         
         # Define the starting state
         initial_state = {
-            "dataset_path": "data/test_data.csv",
+            "source_config": {
+                "type": "csv",
+                "path": "data/test_data.csv"
+            },
+            "dataset_path": "", # This will be filled by the ingestion node
             "messages": [],
             "errors": [],
             "current_step": 0,

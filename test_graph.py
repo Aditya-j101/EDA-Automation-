@@ -4,11 +4,19 @@ from app.graph.orchestrator import create_eda_graph
 app = create_eda_graph()
 
 # 2. Define the starting state
+
 initial_state = {
-    "dataset_path": "data/test_data.csv",
-    "messages": [],
-    "errors": []
-}
+    "source_config": 
+        {
+        "type": "csv",
+        "path": "data/test_data.csv"
+        },
+            "dataset_path": "", # Will be filled by ingestion
+            "messages": [],
+            "errors": [],
+            "current_step": 0,
+            "retries": 0,
+        }
 
 print("🚀 Starting LangGraph execution...")
 

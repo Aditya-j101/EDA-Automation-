@@ -18,7 +18,7 @@ def timeseries_analyst_node(state: AgentState):
     You are an Expert Time-Series Analyst. Your job is to write Python code to analyze temporal data in the dataset.
     You must output ONLY valid Python code. Do not include markdown formatting like ```python.
     The code should:
-    1. Load 'data/cleaned_data.csv'.
+    1. Load '{dataset_path}'.
     2. Time-Series Workflow: Identify if there is a datetime column. If so, sort the data chronologically. Calculate basic rolling averages or detect seasonality/trends if applicable.
     3. Drift Analysis: Split the data chronologically into 'early' and 'late' periods (e.g., first 50% vs last 50%). Perform a statistical test (e.g., Kolmogorov-Smirnov test) on a key continuous variable between the two periods to detect Data Drift.
     4. Print a detailed summary of the time-series trends and whether significant drift was detected.
