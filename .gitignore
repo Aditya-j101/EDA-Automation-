@@ -1,0 +1,29 @@
+# Python Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment Variables
+.env
+
+# Data and Outputs
+data/
+sandbox/
+reports/
+
+# IDE and System Files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# LangGraph / LangChain specific (if any local state files are generated)
+*.sqlite
+*.db

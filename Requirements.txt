@@ -1,0 +1,12 @@
+langgraph
+langchain-groq
+langchain-core
+pandas
+matplotlib
+seaborn
+scipy
+pydantic
+python-dotenv
+nbclient
+jupyter
+scikit-learn
