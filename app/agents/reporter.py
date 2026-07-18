@@ -40,8 +40,8 @@ def reporter_node(state: AgentState):
     if chart_paths:
         report_content += "\n\n## Visualizations\n"
         for path in set(chart_paths):
-            # We use ../ because the report is inside the reports/ folder!
-            report_content += f"![Data Visualization](../{path})\n\n"
+            # Embed using iframe; path is relative to reports folder
+            report_content += f'<iframe src="../{path}" width="100%" height="600" style="border:none;"></iframe>\n\n'
             
     # Save the file
     os.makedirs("reports", exist_ok=True)

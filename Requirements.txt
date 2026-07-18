@@ -13,3 +13,4 @@ scikit-learn
 sqlalchemy
 pymysql
 openpyxl
+plotly >= 5.0.0

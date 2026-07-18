@@ -1,3 +1,10 @@
+import sys
+import os
+
+if sys.platform == "win32":
+    import asyncio
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from app.graph.orchestrator import create_eda_graph
 
 # 1. Build our LangGraph app
@@ -36,5 +43,14 @@ for event in app.stream(initial_state):
         # Print errors if the Sandbox caught any
         if "errors" in node_state and node_state["errors"]:
             print(f"Caught Errors: {node_state['errors'][-1]}")
+            
+        # Print charts if any were generated
+        if "chart_paths" in node_state and node_state["chart_paths"]:
+            print(f"  📊 Charts generated: {node_state['chart_paths']}")
 
 print("\n✅ LangGraph execution complete!")
+
+# Verify outputs
+if os.path.exists("sandbox/plots"):
+    charts = [f for f in os.listdir("sandbox/plots") if f.endswith(".html")]
+    print(f"  ✓ {len(charts)} HTML chart(s) verified in sandbox/plots/")

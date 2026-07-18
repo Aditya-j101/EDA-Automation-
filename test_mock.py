@@ -225,36 +225,38 @@ print("=== TIME-SERIES COMPLETE ===")
 
 MOCK_VISUALIZER_CODE = """
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
+import plotly.io as pio
 import os
+import json
+
+# Ensure Plotly uses full HTML output
+pio.templates.default = "none"
 
 df = pd.read_csv('data/cleaned_data.csv')
 numeric_cols = df.select_dtypes(include='number').columns
 
-os.makedirs('sandbox', exist_ok=True)
+os.makedirs('sandbox/plots', exist_ok=True)
+chart_paths = []
 
-# Plot 1: Distribution of first numeric column
-plt.figure(figsize=(8, 5))
-plt.hist(df[numeric_cols[0]], bins=30, edgecolor='black', alpha=0.7)
-plt.title(f'Distribution of {numeric_cols[0]}')
-plt.xlabel(numeric_cols[0])
-plt.ylabel('Frequency')
-plt.tight_layout()
-plt.savefig('sandbox/chart_dist.png')
-plt.show()
+# Plot 1: Distribution of first numeric column (HTML)
+fig1 = px.histogram(df, x=numeric_cols[0], nbins=30, title=f'Distribution of {numeric_cols[0]}')
+html1_path = f'sandbox/plots/chart_{numeric_cols[0]}_dist.html'
+fig1.write_html(html1_path, include_plotlyjs='cdn')
+chart_paths.append(html1_path)
 
-# Plot 2: Correlation heatmap
-plt.figure(figsize=(8, 6))
-sns.heatmap(df[numeric_cols].corr(), annot=True, cmap='coolwarm', center=0)
-plt.title('Correlation Heatmap')
-plt.tight_layout()
-plt.savefig('sandbox/chart_corr.png')
-plt.show()
+# Plot 2: Correlation heatmap (HTML)
+corr_matrix = df[numeric_cols].corr().reset_index().melt(id_vars='index')
+fig2 = px.density_heatmap(corr_matrix, x='index', y='variable', z='value', color_continuous_scale='RdBu', title='Correlation Heatmap')
+html2_path = 'sandbox/plots/chart_corr_heatmap.html'
+fig2.write_html(html2_path, include_plotlyjs='cdn')
+chart_paths.append(html2_path)
 
-print("Charts saved to sandbox/")
+# Save a JSON manifest so the mock pipeline can detect generated charts
+manifest_path = 'sandbox/plots/manifest.json'
+with open(manifest_path, 'w') as f:
+    json.dump(chart_paths, f)
+print('Charts saved to sandbox/plots/')
 """
 
 
@@ -325,9 +327,9 @@ def run_mock_pipeline():
         # Verify outputs
         if os.path.exists("data/cleaned_data.csv"):
             print("  ✓ data/cleaned_data.csv was created")
-        if os.path.exists("sandbox"):
-            charts = [f for f in os.listdir("sandbox") if f.endswith(".png")]
-            print(f"  ✓ {len(charts)} chart(s) in sandbox/")
+        if os.path.exists("sandbox/plots"):
+            charts = [f for f in os.listdir("sandbox/plots") if f.endswith(".html")]
+            print(f"  ✓ {len(charts)} HTML chart(s) in sandbox/plots/")
 
 
 if __name__ == "__main__":
