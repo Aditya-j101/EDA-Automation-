@@ -226,37 +226,92 @@ print("=== TIME-SERIES COMPLETE ===")
 MOCK_VISUALIZER_CODE = """
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import plotly.io as pio
 import os
-import json
-
-# Ensure Plotly uses full HTML output
-pio.templates.default = "none"
+import numpy as np
 
 df = pd.read_csv('data/cleaned_data.csv')
-numeric_cols = df.select_dtypes(include='number').columns
+numeric_cols = df.select_dtypes(include='number').columns.tolist()
+cat_cols = df.select_dtypes(include='object').columns.tolist()
 
 os.makedirs('sandbox/plots', exist_ok=True)
 chart_paths = []
 
-# Plot 1: Distribution of first numeric column (HTML)
-fig1 = px.histogram(df, x=numeric_cols[0], nbins=30, title=f'Distribution of {numeric_cols[0]}')
-html1_path = f'sandbox/plots/chart_{numeric_cols[0]}_dist.html'
-fig1.write_html(html1_path, include_plotlyjs='cdn')
-chart_paths.append(html1_path)
+# 1. DATA DISTRIBUTION — Histogram for each numeric column
+for col in numeric_cols:
+    fig = px.histogram(df, x=col, nbins=30, title=f'Distribution of {col}')
+    path = f'sandbox/plots/hist_{col.lower()}.html'
+    pio.write_html(fig, file=path, include_plotlyjs='cdn')
+    chart_paths.append(path)
 
-# Plot 2: Correlation heatmap (HTML)
-corr_matrix = df[numeric_cols].corr().reset_index().melt(id_vars='index')
-fig2 = px.density_heatmap(corr_matrix, x='index', y='variable', z='value', color_continuous_scale='RdBu', title='Correlation Heatmap')
-html2_path = 'sandbox/plots/chart_corr_heatmap.html'
-fig2.write_html(html2_path, include_plotlyjs='cdn')
-chart_paths.append(html2_path)
+# 2. OUTLIER DETECTION — Box plot for each numeric column
+for col in numeric_cols:
+    fig = px.box(df, y=col, title=f'Box Plot - {col}')
+    path = f'sandbox/plots/box_{col.lower()}.html'
+    pio.write_html(fig, file=path, include_plotlyjs='cdn')
+    chart_paths.append(path)
 
-# Save a JSON manifest so the mock pipeline can detect generated charts
-manifest_path = 'sandbox/plots/manifest.json'
-with open(manifest_path, 'w') as f:
-    json.dump(chart_paths, f)
-print('Charts saved to sandbox/plots/')
+# 3. MISSING VALUES HEATMAP
+missing = df.isnull().astype(int)
+fig = px.imshow(missing, title='Missing Values Heatmap', color_continuous_scale='Reds', aspect='auto')
+path = 'sandbox/plots/missing_values_heatmap.html'
+pio.write_html(fig, file=path, include_plotlyjs='cdn')
+chart_paths.append(path)
+
+# 4. VARIABLE RELATIONSHIPS — Correlation heatmap
+if len(numeric_cols) >= 2:
+    corr = df[numeric_cols].corr()
+    fig = px.imshow(corr, text_auto='.2f', title='Correlation Heatmap', color_continuous_scale='RdBu_r', aspect='auto')
+    path = 'sandbox/plots/correlation_heatmap.html'
+    pio.write_html(fig, file=path, include_plotlyjs='cdn')
+    chart_paths.append(path)
+
+# 5. CATEGORICAL ANALYSIS — Bar chart for each categorical column
+for col in cat_cols:
+    counts = df[col].value_counts().reset_index()
+    counts.columns = [col, 'count']
+    fig = px.bar(counts, x=col, y='count', title=f'Category Distribution - {col}')
+    path = f'sandbox/plots/bar_{col.lower()}.html'
+    pio.write_html(fig, file=path, include_plotlyjs='cdn')
+    chart_paths.append(path)
+
+# 6. TRENDS & PATTERNS — Line chart if datetime column exists
+date_cols = []
+for col in df.select_dtypes(include='object').columns:
+    try:
+        pd.to_datetime(df[col])
+        date_cols.append(col)
+    except:
+        pass
+if date_cols:
+    date_col = date_cols[0]
+    temp = df.copy()
+    temp[date_col] = pd.to_datetime(temp[date_col])
+    temp = temp.sort_values(date_col)
+    num_col = numeric_cols[0] if numeric_cols else None
+    if num_col:
+        fig = px.line(temp, x=date_col, y=num_col, title=f'{num_col} over Time')
+        path = 'sandbox/plots/trend_line.html'
+        pio.write_html(fig, file=path, include_plotlyjs='cdn')
+        chart_paths.append(path)
+
+# 7. FEATURE CORRELATION — Annotated heatmap with go.Heatmap
+if len(numeric_cols) >= 2:
+    corr = df[numeric_cols].corr()
+    fig = go.Figure(data=go.Heatmap(
+        z=corr.values, x=corr.columns.tolist(), y=corr.index.tolist(),
+        text=np.round(corr.values, 2), texttemplate='%{text}',
+        colorscale='RdBu_r', zmid=0
+    ))
+    fig.update_layout(title='Annotated Feature Correlation Heatmap')
+    path = 'sandbox/plots/annotated_corr_heatmap.html'
+    pio.write_html(fig, file=path, include_plotlyjs='cdn')
+    chart_paths.append(path)
+
+for p in chart_paths:
+    print(p)
+print(f'Total charts generated: {len(chart_paths)}')
 """
 
 

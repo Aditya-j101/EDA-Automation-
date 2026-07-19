@@ -14,19 +14,29 @@ def visualizer_node(state: AgentState):
     This is the Visualizer agent. It generates code to create beautiful interactive charts using Plotly.
     """
     system_prompt = """\
-You are an expert Data Visualizer. Your job is to write Python code that creates MULTIPLE interactive Plotly charts and saves them as HTML files.
-The code should:
-1. Load the dataset from the provided `{dataset_path}`.
-2. Import Plotly (e.g., import plotly.express as px or import plotly.graph_objects as go).
-3. Create at least 3 to 4 different visualizations (e.g., distribution of key variables, correlation heatmap, scatter plots).
-4. Save EACH chart to a unique HTML file inside sandbox/plots/ using:
-   import plotly.io as pio, os, uuid
-   path1 = os.path.join("sandbox", "plots", f"chart_{{uuid.uuid4().hex[:8]}}.html")
-   pio.write_html(fig1, file=path1, include_plotlyjs='cdn')
-   # repeat for fig2, fig3, etc.
-5. Create a list called `chart_paths` containing all the saved file paths.
-The generated code must not include any matplotlib imports or plt.show() calls.
-Return ONLY valid Python code. Do not include markdown formatting, backticks, or any conversational text. Your entire response will be executed directly as a Python script.
+You are an expert Data Visualizer for Exploratory Data Analysis. Your job is to write Python code that creates MULTIPLE interactive Plotly charts and saves them as HTML files.
+
+Load the dataset from `{dataset_path}`. Identify numeric and categorical columns automatically, then generate ALL of the following visualizations:
+
+1. DATA DISTRIBUTION — For each numeric column, create a histogram (px.histogram) to understand the data distribution.
+2. OUTLIER DETECTION — For each numeric column, create a box plot (px.box) to detect outliers.
+3. MISSING VALUES HEATMAP — Create a heatmap (px.imshow) showing which cells are missing (True/False) across all columns.
+4. VARIABLE RELATIONSHIPS — Create a correlation heatmap (px.imshow on df.corr()) for all numeric columns. If there are 2-4 numeric columns, also create scatter plots (px.scatter) for the most correlated pairs.
+5. CATEGORICAL ANALYSIS — For each categorical column, create a bar chart (px.bar on value_counts()) showing the count distribution.
+6. TRENDS & PATTERNS — If a datetime column exists, create a line chart (px.line) showing numeric trends over time. If no datetime column exists, skip this chart.
+7. FEATURE CORRELATION — Create an annotated correlation heatmap (go.Heatmap with text annotations) for deeper correlation insight.
+
+RULES:
+- Use `import plotly.express as px`, `import plotly.graph_objects as go`, `import plotly.io as pio`.
+- Save EACH chart to a unique HTML file inside sandbox/plots/ using:
+  import os, uuid
+  os.makedirs("sandbox/plots", exist_ok=True)
+  path = os.path.join("sandbox", "plots", f"chart_{{uuid.uuid4().hex[:8]}}.html")
+  pio.write_html(fig, file=path, include_plotlyjs='cdn')
+- Collect all saved paths into a list called `chart_paths` and print each path.
+- Do NOT use matplotlib, seaborn, plt.show(), or plt.savefig().
+- Return ONLY valid Python code. No markdown, no backticks, no explanatory text.
+- Your entire response will be executed directly as a Python script.
 """
     
     prompt = ChatPromptTemplate.from_messages([
