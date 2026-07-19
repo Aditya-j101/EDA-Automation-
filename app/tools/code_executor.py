@@ -49,11 +49,19 @@ def executor_node(state: AgentState):
         existing = state.get("chart_paths", [])
         new_images = results.get("images", [])
         combined = list(set(existing + new_images))
-        return {
+        
+        update = {
             "messages": [AIMessage(content=f"Execution Output:\n{results['output']}")],
             "chart_paths": combined,
             "retries": 0,
         }
+        
+        # If the feature engineer just created engineered_data.csv,
+        # update dataset_path so all downstream agents use the enriched dataset.
+        if os.path.exists("data/engineered_data.csv"):
+            update["dataset_path"] = "data/engineered_data.csv"
+        
+        return update
 
 
 

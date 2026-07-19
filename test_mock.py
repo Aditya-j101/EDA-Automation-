@@ -223,6 +223,78 @@ else:
 print("=== TIME-SERIES COMPLETE ===")
 """
 
+MOCK_FEATURE_ENGINEER_CODE = """
+import pandas as pd
+import numpy as np
+import os
+
+df = pd.read_csv('data/cleaned_data.csv')
+numeric_cols = df.select_dtypes(include='number').columns.tolist()
+non_numeric_cols = df.select_dtypes(exclude='number').columns.tolist()
+
+print("=== AUTOMATED FEATURE ENGINEERING ===")
+new_features = []
+
+# 1. INTERACTION TERMS — only for pairs with |correlation| > 0.3
+if len(numeric_cols) >= 2:
+    corr = df[numeric_cols].corr().abs()
+    pairs = []
+    for i in range(len(numeric_cols)):
+        for j in range(i+1, len(numeric_cols)):
+            c = corr.iloc[i, j]
+            if c > 0.3:
+                pairs.append((numeric_cols[i], numeric_cols[j], c))
+    pairs.sort(key=lambda x: x[2], reverse=True)
+    pairs = pairs[:10]  # Safety cap
+    for col_a, col_b, c_val in pairs:
+        new_col = f"{col_a}_x_{col_b}"
+        df[new_col] = df[col_a] * df[col_b]
+        new_features.append(f"  [Interaction] {new_col} (corr={c_val:.3f})")
+    if not pairs:
+        print("  No significant correlations found for interaction terms.")
+else:
+    print("  Not enough numeric columns for interaction terms.")
+
+# 2. POLYNOMIAL FEATURES (degree-2 only)
+for col in numeric_cols:
+    skewness = df[col].skew()
+    if abs(skewness) > 1:
+        new_col = f"{col}_sq"
+        df[new_col] = df[col] ** 2
+        new_features.append(f"  [Polynomial] {new_col} (skew={skewness:.3f})")
+if not any('[Polynomial]' in f for f in new_features):
+    print("  No highly skewed columns found for polynomial features.")
+
+# 3. DATE-PART EXTRACTION
+date_extracted = False
+for col in non_numeric_cols:
+    try:
+        parsed = pd.to_datetime(df[col], errors='coerce')
+        if parsed.notna().mean() > 0.5:
+            df[f"{col}_year"] = parsed.dt.year
+            df[f"{col}_month"] = parsed.dt.month
+            df[f"{col}_dayofweek"] = parsed.dt.dayofweek
+            df[f"{col}_is_weekend"] = (parsed.dt.dayofweek >= 5).astype(int)
+            df = df.drop(columns=[col])
+            new_features.append(f"  [Date-Part] {col}_year, {col}_month, {col}_dayofweek, {col}_is_weekend")
+            date_extracted = True
+    except:
+        pass
+if not date_extracted:
+    print("  No datetime columns found for date-part extraction.")
+
+# Summary
+print(f"\\nNew features created: {len(new_features)}")
+for f in new_features:
+    print(f)
+
+os.makedirs('data', exist_ok=True)
+df.to_csv('data/engineered_data.csv', index=False)
+print(f"\\nEngineered dataset saved to data/engineered_data.csv")
+print(f"Final shape: {df.shape}")
+print("=== FEATURE ENGINEERING COMPLETE ===")
+"""
+
 MOCK_VISUALIZER_CODE = """
 import pandas as pd
 import plotly.express as px
@@ -333,6 +405,7 @@ def run_mock_pipeline():
     # Patch all agent node functions with mocks
     with patch('app.graph.orchestrator.profiler_node', side_effect=create_mock_agent(MOCK_PROFILER_CODE)), \
          patch('app.graph.orchestrator.cleaner_node', side_effect=create_mock_agent(MOCK_CLEANER_CODE)), \
+         patch('app.graph.orchestrator.feature_engineer_node', side_effect=create_mock_agent(MOCK_FEATURE_ENGINEER_CODE)), \
          patch('app.graph.orchestrator.analyst_node', side_effect=create_mock_agent(MOCK_ANALYST_CODE)), \
          patch('app.graph.orchestrator.advanced_analyst_node', side_effect=create_mock_agent(MOCK_ADVANCED_ANALYST_CODE)), \
          patch('app.graph.orchestrator.timeseries_analyst_node', side_effect=create_mock_agent(MOCK_TIMESERIES_CODE)), \
@@ -382,6 +455,10 @@ def run_mock_pipeline():
         # Verify outputs
         if os.path.exists("data/cleaned_data.csv"):
             print("  ✓ data/cleaned_data.csv was created")
+        if os.path.exists("data/engineered_data.csv"):
+            import pandas as pd
+            eng_df = pd.read_csv("data/engineered_data.csv")
+            print(f"  ✓ data/engineered_data.csv was created ({eng_df.shape[1]} columns)")
         if os.path.exists("sandbox/plots"):
             charts = [f for f in os.listdir("sandbox/plots") if f.endswith(".html")]
             print(f"  ✓ {len(charts)} HTML chart(s) in sandbox/plots/")

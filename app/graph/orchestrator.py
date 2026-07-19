@@ -9,12 +9,14 @@ from app.agents.analyst import analyst_node
 from app.agents.visualizer import visualizer_node
 from app.agents.advanced_analyst import advanced_analyst_node
 from app.agents.timeseries_analyst import timeseries_analyst_node
+from app.agents.feature_engineer import feature_engineer_node
 from app.tools.code_executor import executor_node
 
 # The fixed pipeline order — no LLM call needed to decide this!
 PIPELINE_ORDER = [
     "profiler",
     "cleaner",
+    "feature_engineer",
     "analyst",
     "advanced_analyst",
     "timeseries_analyst",
@@ -56,6 +58,7 @@ def step_tracker(agent_name):
         agent_functions = {
             "profiler": profiler_node,
             "cleaner": cleaner_node,
+            "feature_engineer": feature_engineer_node,
             "analyst": analyst_node,
             "advanced_analyst": advanced_analyst_node,
             "timeseries_analyst": timeseries_analyst_node,
