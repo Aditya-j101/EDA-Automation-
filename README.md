@@ -126,4 +126,4 @@ EDA-Agent/
 - [x] **Multi-Format Ingestion**: CSV, Excel, JSON, Parquet, and SQL database support.
 - [x] **Interactive Visualizations**: Plotly HTML charts with `<iframe>` embedding in reports.
 - [x] **Automated Feature Engineering**: Interaction terms, polynomial features, and date-part extraction.
-- [ ] **Interactive Web Frontend**: Build a modern, interactive web application (e.g. Next.js, React, or Vue) for uploading datasets, monitoring the agent pipeline in real-time, and viewing the reports and interactive charts.
+- [x] **Interactive Web Frontend**: Build a modern, interactive web application (e.g. Next.js, React, or Vue) for uploading datasets, monitoring the agent pipeline in real-time, and viewing the reports and interactive charts.
