@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 from app.agents.state import AgentState
@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3.6-flash",
     temperature=0.1,
     max_retries=3,
     )
@@ -49,6 +49,7 @@ def analyst_node(state:AgentState):
     response = chain.invoke({"dataset_path":state.get("dataset_path", "data.csv")})
 
     #Clean up the output in case the LLm returned the markdown blocks anyway
-    generated_code = response.content.replace("```python","").replace("```","").strip()
+    content = response.content if isinstance(response.content, str) else response.content[0].get("text", str(response.content))
+    generated_code = content.replace("```python","").replace("```","").strip()
     #Append the LLM's response to the message history so LangGraph remembers it
     return {"messages": [HumanMessage(content = f"Generated Code:\n{generated_code}")]}

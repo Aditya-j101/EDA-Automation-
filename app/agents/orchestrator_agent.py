@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from app.agents.state import AgentState
 from pydantic import BaseModel, Field
@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, max_retries=3)
+llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0, max_retries=3)
 
 # We use Pydantic to force the LLM to output exactly what we want
 class RouteDecision(BaseModel):

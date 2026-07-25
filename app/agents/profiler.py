@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 from app.agents.state import AgentState
@@ -7,10 +7,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGroq(
-    model = "llama-3.3-70b-versatile",
-    temperature = 0,
-    max_retries = 3,
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3.6-flash",
+    temperature=0,
+    max_retries=3,
 )
 
 def profiler_node(state: AgentState):
@@ -54,7 +54,8 @@ def profiler_node(state: AgentState):
 
     chain = prompt | llm
     response  = chain.invoke({"dataset_path":state.get("dataset_path","data.csv")})
-    generated_code = response.content.replace("```python", "").replace("```", "").strip()
+    content = response.content if isinstance(response.content, str) else response.content[0]["text"]
+    generated_code = content.replace("```python", "").replace("```", "").strip()
 
     return {"messages": [HumanMessage(content=f"Generated Code:\n{generated_code}")]}
 

@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 from app.agents.state import AgentState
@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# We use the same powerful Groq model
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1, max_retries=3)
+# We use the Gemini Flash model
+llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.1, max_retries=3)
 
 def advanced_analyst_node(state: AgentState):
     """
@@ -55,6 +55,7 @@ def advanced_analyst_node(state: AgentState):
     chain = prompt | llm
     response = chain.invoke({"dataset_path": state.get("dataset_path", "data/cleaned_data.csv")})
     
-    generated_code = response.content.replace("```python", "").replace("```", "").strip()
+    content = response.content if isinstance(response.content, str) else response.content[0].get("text", str(response.content))
+    generated_code = content.replace("```python", "").replace("```", "").strip()
     
     return {"messages": [HumanMessage(content=f"Generated Code:\n{generated_code}")]}

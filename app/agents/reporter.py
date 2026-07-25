@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import AIMessage
 from app.agents.state import AgentState
@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.3, max_retries=3)
+llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.3, max_retries=3)
 
 def reporter_node(state: AgentState):
     """
@@ -15,7 +15,11 @@ def reporter_node(state: AgentState):
     """
     # Combine everything that happened into one giant text block for the LLM
     history = "\n".join([msg.content for msg in state.get("messages", [])])
-    chart_paths = state.get("chart_paths", [])
+    # Scan the sandbox/plots directory for generated charts
+    plots_dir = os.path.join("sandbox", "plots")
+    chart_paths = []
+    if os.path.exists(plots_dir):
+        chart_paths = [os.path.join("sandbox", "plots", f).replace('\\', '/') for f in os.listdir(plots_dir) if f.endswith(".html")]
     
     system_prompt = """
     You are an expert Data Scientist. 
@@ -34,7 +38,7 @@ def reporter_node(state: AgentState):
     
     chain = prompt | llm
     response = chain.invoke({"history": history})
-    report_content = response.content
+    report_content = response.content if isinstance(response.content, str) else response.content[0].get("text", str(response.content))
     
     # Append the generated charts to the bottom of the report
     if chart_paths:

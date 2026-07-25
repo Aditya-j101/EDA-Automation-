@@ -3,6 +3,7 @@ Mock Test for the EDA Pipeline — ZERO API calls!
 Uses hardcoded Python code strings instead of calling Groq LLM.
 Tests: graph routing, executor, critic retry logic, state management, and file I/O.
 """
+import sys
 from unittest.mock import patch, MagicMock
 from langchain_core.messages import HumanMessage, AIMessage
 from app.graph.orchestrator import create_eda_graph
@@ -409,7 +410,8 @@ def run_mock_pipeline():
          patch('app.graph.orchestrator.analyst_node', side_effect=create_mock_agent(MOCK_ANALYST_CODE)), \
          patch('app.graph.orchestrator.advanced_analyst_node', side_effect=create_mock_agent(MOCK_ADVANCED_ANALYST_CODE)), \
          patch('app.graph.orchestrator.timeseries_analyst_node', side_effect=create_mock_agent(MOCK_TIMESERIES_CODE)), \
-         patch('app.graph.orchestrator.visualizer_node', side_effect=create_mock_agent(MOCK_VISUALIZER_CODE)):
+         patch('app.graph.orchestrator.visualizer_node', side_effect=create_mock_agent(MOCK_VISUALIZER_CODE)), \
+         patch('app.graph.orchestrator.reporter_node', return_value={"messages": [AIMessage(content="Final report successfully generated in reports/final_report.md")]}):
         
         # Build the graph
         app = create_eda_graph()

@@ -56,9 +56,13 @@ def executor_node(state: AgentState):
             "retries": 0,
         }
         
-        # If the feature engineer just created engineered_data.csv,
-        # update dataset_path so all downstream agents use the enriched dataset.
-        if os.path.exists("data/engineered_data.csv"):
+        current_step = state.get("current_step", 0)
+        # PIPELINE_ORDER: 0:profiler, 1:cleaner, 2:feature_engineer, ...
+        # If cleaner ran, update to cleaned_data
+        if current_step == 1 and os.path.exists("data/cleaned_data.csv"):
+            update["dataset_path"] = "data/cleaned_data.csv"
+        # If feature engineer ran, update to engineered_data
+        elif current_step == 2 and os.path.exists("data/engineered_data.csv"):
             update["dataset_path"] = "data/engineered_data.csv"
         
         return update

@@ -1,6 +1,6 @@
 # 🚀 Automated EDA Agent
 
-An intelligent, multi-agent system powered by **LangGraph** and **Groq (Llama 3)** that automates end-to-end Exploratory Data Analysis (EDA). The system autonomously writes, safely executes, and debugs Python code to clean, engineer features, analyze, and visualize your data, ultimately producing a comprehensive Markdown report with interactive charts.
+An intelligent, multi-agent system powered by **LangGraph** and **Google Gemini** that automates end-to-end Exploratory Data Analysis (EDA). The system autonomously writes, safely executes, and debugs Python code to clean, engineer features, analyze, and visualize your data, ultimately producing a comprehensive Markdown report with interactive charts.
 
 ---
 
@@ -36,7 +36,7 @@ ingestion → profiler → cleaner → feature_engineer → analyst → advanced
 ```
 
 ### ⚡ Optimization Features
-- **Zero-API Mock Testing**: Includes `test_mock.py` to validate pipeline graph routing and system I/O locally without hitting Groq rate limits.
+- **Zero-API Mock Testing**: Includes `test_mock.py` to validate pipeline graph routing and system I/O locally without hitting Gemini rate limits.
 - **Deterministic Routing**: Replaced LLM-based orchestrator decisions with a fixed state machine, cutting API calls by ~50%.
 - **Robust Error Suppression**: OS-level suppression of noisy Jupyter kernel TCP and Matplotlib warnings.
 - **Auto Dataset Path Switching**: After feature engineering, the pipeline automatically switches downstream agents to use the enriched `data/engineered_data.csv`.
@@ -47,7 +47,7 @@ ingestion → profiler → cleaner → feature_engineer → analyst → advanced
 
 ### Prerequisites
 - Python 3.10+
-- A [Groq API Key](https://console.groq.com/) for LLM inference.
+- A [Google AI Studio API Key](https://aistudio.google.com/) for LLM inference.
 
 ### Installation
 1. Clone the repository:
@@ -69,7 +69,7 @@ ingestion → profiler → cleaner → feature_engineer → analyst → advanced
    ```
 4. Configure your `.env` file in the root directory:
    ```env
-   GROQ_API_KEY=your_api_key_here
+   GOOGLE_API_KEY=your_api_key_here
    ```
 
 ### Usage
@@ -126,5 +126,4 @@ EDA-Agent/
 - [x] **Multi-Format Ingestion**: CSV, Excel, JSON, Parquet, and SQL database support.
 - [x] **Interactive Visualizations**: Plotly HTML charts with `<iframe>` embedding in reports.
 - [x] **Automated Feature Engineering**: Interaction terms, polynomial features, and date-part extraction.
-- [ ] **LLM Provider Agnostic**: Easily swap Groq with OpenAI (GPT-4o) or Anthropic (Claude 3.5 Sonnet) via LangChain configurations.
-- [ ] **Streamlit Dashboard**: Web UI for uploading datasets and viewing reports interactively.
+- [ ] **Interactive Web Frontend**: Build a modern, interactive web application (e.g. Next.js, React, or Vue) for uploading datasets, monitoring the agent pipeline in real-time, and viewing the reports and interactive charts.

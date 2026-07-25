@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 from app.agents.state import AgentState
@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1, max_retries=3)
+llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.1, max_retries=3)
 
 def critic_node(state: AgentState):
     """
@@ -50,7 +50,8 @@ def critic_node(state: AgentState):
     
     chain = prompt | llm
     response = chain.invoke({"failed_code": failed_code, "error_message": error_message})
-    fixed_code = response.content.replace("```python", "").replace("```", "").strip()
+    content = response.content if isinstance(response.content, str) else response.content[0].get("text", str(response.content))
+    fixed_code = content.replace("```python", "").replace("```", "").strip()
     
     # We increment the retries counter so we don't loop forever
     current_retries = state.get("retries", 0) + 1

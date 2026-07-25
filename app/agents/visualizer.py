@@ -1,4 +1,4 @@
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 from app.agents.state import AgentState
@@ -7,26 +7,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1, max_retries=3)
+llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.1, max_retries=3)
 
 def visualizer_node(state: AgentState):
     """
     This is the Visualizer agent. It generates code to create beautiful interactive charts using Plotly.
     """
     system_prompt = """\
-You are an expert Data Visualizer for Exploratory Data Analysis. Your job is to write Python code that creates MULTIPLE interactive Plotly charts and saves them as HTML files.
+You are an expert Data Visualizer for Exploratory Data Analysis. Your job is to write Python code that creates EXACTLY 5 interactive Plotly charts and saves them as HTML files.
 
-Load the dataset from `{dataset_path}`. Identify numeric and categorical columns automatically, then generate ALL of the following visualizations:
+Load the dataset from `{dataset_path}`. Identify numeric and categorical columns automatically. 
+Instead of plotting every column, CHOOSE the 5 most insightful and important visualizations that explain the whole dataset. 
 
-1. DATA DISTRIBUTION — For each numeric column, create a histogram (px.histogram) to understand the data distribution.
-2. OUTLIER DETECTION — For each numeric column, create a box plot (px.box) to detect outliers.
-3. MISSING VALUES HEATMAP — Create a heatmap (px.imshow) showing which cells are missing (True/False) across all columns.
-4. VARIABLE RELATIONSHIPS — Create a correlation heatmap (px.imshow on df.corr()) for all numeric columns. If there are 2-4 numeric columns, also create scatter plots (px.scatter) for the most correlated pairs.
-5. CATEGORICAL ANALYSIS — For each categorical column, create a bar chart (px.bar on value_counts()) showing the count distribution.
-6. TRENDS & PATTERNS — If a datetime column exists, create a line chart (px.line) showing numeric trends over time. If no datetime column exists, skip this chart.
-7. FEATURE CORRELATION — Create an annotated correlation heatmap (go.Heatmap with text annotations) for deeper correlation insight.
+You must select exactly 5 visualizations from the following categories:
+- Correlation Heatmap (for the top numeric features)
+- Distribution of the Target/Primary variable (Histogram or Bar chart)
+- Box plot for the most important numeric features (to detect outliers)
+- Scatter plot for the most highly correlated pair of variables
+- Time series line chart (if a datetime column exists)
 
 RULES:
+- CRITICAL: You must generate EXACTLY 5 charts total. Do NOT generate more than 5.
+- CRITICAL: If the dataframe is larger than 10,000 rows, randomly sample it to 10,000 rows before generating any plots to prevent the browser from freezing (e.g., `if len(df) > 10000: df = df.sample(n=10000, random_state=42)`).
 - Use `import plotly.express as px`, `import plotly.graph_objects as go`, `import plotly.io as pio`.
 - Save EACH chart to a unique HTML file inside sandbox/plots/ using:
   import os, uuid
@@ -46,22 +48,12 @@ RULES:
     
     chain = prompt | llm
     response = chain.invoke({"dataset_path": state.get("dataset_path", "data/cleaned_data.csv")})
-    generated_code = response.content.replace("```python", "").replace("```", "").strip()
+    content = response.content if isinstance(response.content, str) else response.content[0].get("text", str(response.content))
+    generated_code = content.replace("```python", "").replace("```", "").strip()
     
-    # Extract all chart paths from generated code
-    import re, os, uuid
-    # Find all strings that look like "sandbox/plots/..." or "sandbox\\plots\\..." ending in .html
-    found_paths = re.findall(r"['\"](sandbox[\\/]plots[\\/][^'\"]+\.html)['\"]", generated_code)
-    
-    # Convert any double backslashes to forward slashes for markdown compatibility
-    chart_paths = [p.replace('\\', '/') for p in found_paths]
-    
-    if not chart_paths:
-        # Fallback if regex fails but code might still run
-        fallback_path = os.path.join("sandbox", "plots", f"chart_{uuid.uuid4().hex[:8]}.html").replace('\\', '/')
-        chart_paths = [fallback_path]
+    # We cannot extract paths statically since they are generated at runtime using uuid4().
+    # The reporter node will just read the sandbox/plots directory after execution.
     
     return {
-        "messages": [HumanMessage(content=f"Generated Code:\n{generated_code}")],
-        "chart_paths": chart_paths
+        "messages": [HumanMessage(content=f"Generated Code:\n{generated_code}")]
     }

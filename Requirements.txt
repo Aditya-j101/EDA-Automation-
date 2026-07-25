@@ -1,5 +1,5 @@
 langgraph
-langchain-groq
+langchain-google-genai
 langchain-core
 pandas
 matplotlib
@@ -9,8 +9,13 @@ pydantic
 python-dotenv
 nbclient
 jupyter
+fastapi
+uvicorn
+sse-starlette
+python-multipart
 scikit-learn
 sqlalchemy
 pymysql
 openpyxl
 plotly >= 5.0.0
+
