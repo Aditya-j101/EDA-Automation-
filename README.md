@@ -1,5 +1,7 @@
 # 🚀 Automated EDA Agent
 
+**[🔴 Live Demo (Vercel)](https://eda-automation-three.vercel.app/)**
+
 An intelligent, multi-agent system powered by **LangGraph** and **Google Gemini** that automates end-to-end Exploratory Data Analysis (EDA). The system autonomously writes, safely executes, and debugs Python code to clean, engineer features, analyze, and visualize your data, ultimately producing a comprehensive Markdown report with interactive charts.
 
 ---
@@ -49,8 +51,10 @@ ingestion → profiler → cleaner → feature_engineer → analyst → advanced
 - Python 3.10+
 - A [Google AI Studio API Key](https://aistudio.google.com/) for LLM inference.
 
-### Installation
-1. Clone the repository:
+### Installation & Local Setup
+
+#### 1. Backend (FastAPI)
+1. Clone the repository and navigate to the backend directory:
    ```bash
    git clone https://github.com/Aditya-j101/EDA-Automation-.git
    cd EDA-Automation-
@@ -65,26 +69,51 @@ ingestion → profiler → cleaner → feature_engineer → analyst → advanced
    ```
 3. Install dependencies:
    ```bash
-   pip install -r Requirements.txt
+   pip install -r requirements.txt
    ```
 4. Configure your `.env` file in the root directory:
    ```env
-   GOOGLE_API_KEY=your_api_key_here
+   GOOGLE_API_KEY=your_gemini_api_key_here
+   ```
+5. Start the FastAPI server:
+   ```bash
+   python api.py
    ```
 
-### Usage
-Place your target dataset in the `data/` folder (e.g., `data/test_data.csv`).
+#### 2. Frontend (React + Vite)
+1. Open a new terminal and navigate to the frontend folder:
+   ```bash
+   cd frontend
+   ```
+2. Install Node.js dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open your browser to `http://localhost:5173`, drag and drop your dataset, and watch the pipeline run!
 
-**To test the pipeline wiring safely (No API calls):**
-```bash
-python test_mock.py
-```
+---
 
-**To run the full LLM-powered autonomous pipeline:**
-```bash
-python test_graph.py
-```
-Check the `reports/` folder for your generated Markdown report and `sandbox/plots/` for interactive HTML visualizations!
+## ☁️ Production Deployment
+
+This project is configured for easy deployment using Docker, Render, and Vercel.
+
+### Deploying the Backend to Render
+1. Push this repository to GitHub.
+2. Log into [Render](https://render.com) and create a new **Web Service**.
+3. Connect your GitHub repository. Render will automatically detect the `Dockerfile` and `render.yaml` blueprint.
+4. In the Render dashboard, go to **Environment** and add your `GOOGLE_API_KEY`.
+5. Deploy and copy your backend URL (e.g., `https://eda-agent-api.onrender.com`).
+
+### Deploying the Frontend to Vercel
+1. Log into [Vercel](https://vercel.com) and click **Add New Project**.
+2. Import your GitHub repository and set the **Root Directory** to `frontend/`.
+3. In **Environment Variables**, add:
+   - `VITE_API_URL`: *Your Render backend URL from the previous step*
+4. Click **Deploy**. Vercel will automatically build the React app.
 
 ---
 
@@ -115,7 +144,10 @@ EDA-Agent/
 ├── reports/                        # Generated Markdown reports
 ├── test_mock.py                    # Zero-API pipeline test
 ├── test_graph.py                   # Full LLM pipeline test
-├── Requirements.txt                # Python dependencies
+├── api.py                          # FastAPI backend entrypoint
+├── Dockerfile                      # Production Docker container setup
+├── render.yaml                     # Render infrastructure blueprint
+├── requirements.txt                # Python dependencies
 └── .env                            # API keys
 ```
 
