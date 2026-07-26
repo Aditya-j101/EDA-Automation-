@@ -29,6 +29,8 @@ const getNodeDetails = (node) => {
   }
 };
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 function App() {
   const [file, setFile] = useState(null);
   const [filename, setFilename] = useState('');
@@ -83,7 +85,7 @@ function App() {
     formData.append('file', file);
     
     try {
-      const uploadRes = await fetch('http://localhost:8000/api/upload', {
+      const uploadRes = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -98,7 +100,7 @@ function App() {
       setNodeStatuses({ SYSTEM: 'success' });
       
       // 2. Start SSE Stream
-      const eventSource = new EventSource(`http://localhost:8000/api/run?filename=${encodeURIComponent(uploadedFilename)}`);
+      const eventSource = new EventSource(`${API_URL}/api/run?filename=${encodeURIComponent(uploadedFilename)}`);
       
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
@@ -147,7 +149,7 @@ function App() {
   const fetchReport = async () => {
     try {
       setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), node: 'SYSTEM', msg: 'Fetching final report...', type: 'info' }]);
-      const res = await fetch('http://localhost:8000/api/report');
+      const res = await fetch(`${API_URL}/api/report`);
       if (res.ok) {
         const data = await res.json();
         
@@ -178,7 +180,7 @@ function App() {
   };
 
   const handleDownload = () => {
-    window.open('http://localhost:8000/api/download', '_blank');
+    window.open(`${API_URL}/api/download`, '_blank');
   };
 
   return (
@@ -295,7 +297,7 @@ function App() {
                   return (
                     <div key={i} className="chart-card">
                       <iframe 
-                        src={`http://localhost:8000/api/plots/${filename}`}
+                        src={`${API_URL}/api/plots/${filename}`}
                         className="chart-frame"
                         title={`Chart ${i}`}
                       />

@@ -9,6 +9,7 @@ pydantic
 python-dotenv
 nbclient
 jupyter
+ipykernel
 fastapi
 uvicorn
 sse-starlette
