@@ -1,54 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { UploadCloud, Activity, CheckCircle, AlertCircle, FileText, BarChart2, Server, Download, RefreshCw, Eye, Settings, Database, Cpu, PieChart, Check } from 'lucide-react';
+import * as Icons from 'lucide-react';
+import { UploadCloud, Zap, Database, Activity, Code, FileSpreadsheet, RefreshCw, Download } from 'lucide-react';
 import './index.css';
 
-const PIPELINE_NODES = [
-  'SYSTEM',
-  'PROFILER',
-  'CLEANER',
-  'FEATURE_ENGINEER',
-  'ANALYST',
-  'TIMESERIES_ANALYST',
-  'VISUALIZER',
-  'REPORTER'
-];
-
-const getNodeDetails = (node) => {
-  switch (node) {
-    case 'SYSTEM': return { label: 'Upload', icon: <UploadCloud size={24} /> };
-    case 'PROFILER': return { label: 'Profiler', icon: <Eye size={24} /> };
-    case 'CLEANER': return { label: 'Cleaner', icon: <Settings size={24} /> };
-    case 'FEATURE_ENGINEER': return { label: 'Features', icon: <Database size={24} /> };
-    case 'ANALYST': return { label: 'Analyst', icon: <Cpu size={24} /> };
-    case 'TIMESERIES_ANALYST': return { label: 'Time Series', icon: <Activity size={24} /> };
-    case 'VISUALIZER': return { label: 'Visuals', icon: <PieChart size={24} /> };
-    case 'REPORTER': return { label: 'Reporter', icon: <FileText size={24} /> };
-    default: return { label: node, icon: <Activity size={24} /> };
-  }
-};
-
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const AGENTS = [
+  { id: 'INGESTION', name: 'Ingestion', role: 'Load & Validate', kpiLabel: 'Status', icon: 'Database' },
+  { id: 'PROFILER', name: 'Profiler', role: 'Schema Analysis', kpiLabel: 'Status', icon: 'FileSearch' },
+  { id: 'CLEANER', name: 'Cleaner', role: 'Impute & Cap', kpiLabel: 'Status', icon: 'Wand2' },
+  { id: 'FEATURE_ENGINEER', name: 'Feature Engineer', role: 'Transform', kpiLabel: 'Status', icon: 'Cpu' },
+  { id: 'ANALYST', name: 'Analyst', role: 'Stat Tests', kpiLabel: 'Status', icon: 'Activity' },
+  { id: 'ADVANCED_ANALYST', name: 'Adv. Analyst', role: 'ML Prep', kpiLabel: 'Status', icon: 'Network' },
+  { id: 'TIMESERIES_ANALYST', name: 'Time-Series', role: 'Drift Check', kpiLabel: 'Status', icon: 'TrendingUp' },
+  { id: 'VISUALIZER', name: 'Visualizer', role: 'Plotly Charts', kpiLabel: 'Status', icon: 'BarChart3' },
+  { id: 'REPORTER', name: 'Reporter', role: 'Markdown Gen', kpiLabel: 'Status', icon: 'FileText' }
+];
 
 function App() {
   const [file, setFile] = useState(null);
   const [filename, setFilename] = useState('');
   const [status, setStatus] = useState('idle'); // idle, uploading, running, complete, error
-  const [logs, setLogs] = useState([]);
   const [reportContent, setReportContent] = useState('');
   const [chartPaths, setChartPaths] = useState([]);
   const [nodeStatuses, setNodeStatuses] = useState({});
   
   const fileInputRef = useRef(null);
-  const logsEndRef = useRef(null);
-
-  // Auto-scroll logs
-  useEffect(() => {
-    if (logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -58,17 +37,10 @@ function App() {
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.currentTarget.classList.add('drag-active');
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('drag-active');
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    e.currentTarget.classList.remove('drag-active');
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
     }
@@ -78,9 +50,8 @@ function App() {
     if (!file) return;
     
     setStatus('uploading');
-    setNodeStatuses({ SYSTEM: 'uploading' });
+    setNodeStatuses({ INGESTION: 'running' });
     
-    // 1. Upload File
     const formData = new FormData();
     formData.append('file', file);
     
@@ -97,31 +68,37 @@ function App() {
       setFilename(uploadedFilename);
       
       setStatus('running');
-      setNodeStatuses({ SYSTEM: 'success' });
       
-      // 2. Start SSE Stream
       const eventSource = new EventSource(`${API_URL}/api/run?filename=${encodeURIComponent(uploadedFilename)}`);
       
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
         
         if (data.node) {
+          const nodeUpper = data.node;
+          if (nodeUpper === 'SYSTEM' && data.status.includes('Starting')) return; // Ignore initial SYSTEM message
+          
           setNodeStatuses(prev => {
             const newStatuses = { ...prev };
-            // If it's an error
             if (data.status.toLowerCase().includes('error')) {
-              newStatuses[data.node] = 'failed';
+              newStatuses[nodeUpper] = 'failed';
             } else if (data.status.toLowerCase().includes('finished') || data.status.toLowerCase().includes('complete')) {
-              newStatuses[data.node] = 'success';
+              newStatuses[nodeUpper] = 'success';
+              
+              // Automatically move to next agent
+              const currentIndex = AGENTS.findIndex(a => a.id === nodeUpper);
+              if (currentIndex >= 0 && currentIndex < AGENTS.length - 1) {
+                const nextAgent = AGENTS[currentIndex + 1];
+                newStatuses[nextAgent.id] = 'running';
+              }
             } else {
-              newStatuses[data.node] = 'running';
+              newStatuses[nodeUpper] = 'running';
             }
             return newStatuses;
           });
         }
         
         if (data.charts && data.charts.length > 0) {
-          // Accumulate chart paths properly
           setChartPaths(prev => [...new Set([...prev, ...data.charts])]);
         }
         
@@ -133,35 +110,26 @@ function App() {
       
       eventSource.onerror = (err) => {
         console.error("SSE Error:", err);
-        setNodeStatuses(prev => ({ ...prev, SYSTEM: 'failed' }));
+        setNodeStatuses(prev => ({ ...prev, INGESTION: 'failed' }));
         eventSource.close();
-        // Even if connection drops, try to fetch report in case it actually finished
         fetchReport();
       };
       
     } catch (err) {
       console.error(err);
       setStatus('error');
-      setNodeStatuses(prev => ({ ...prev, SYSTEM: 'failed' }));
+      setNodeStatuses(prev => ({ ...prev, INGESTION: 'failed' }));
     }
   };
 
   const fetchReport = async () => {
     try {
-      setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), node: 'SYSTEM', msg: 'Fetching final report...', type: 'info' }]);
       const res = await fetch(`${API_URL}/api/report`);
       if (res.ok) {
         const data = await res.json();
-        
-        // The reporter adds iframe tags to the markdown for charts. 
-        // We will strip those out of the raw markdown because react-markdown doesn't render raw iframes safely by default.
-        // Instead, we will render the markdown text, and display the charts separately below it using the chartPaths we collected from SSE.
         const cleanedContent = data.content.replace(/<iframe.*?><\/iframe>/g, '');
-        
         setReportContent(cleanedContent);
         setStatus('complete');
-      } else {
-        throw new Error("Report not found");
       }
     } catch (err) {
        console.error("Report fetch error:", err);
@@ -173,143 +141,246 @@ function App() {
     setFile(null);
     setFilename('');
     setStatus('idle');
-    setLogs([]);
     setReportContent('');
     setChartPaths([]);
     setNodeStatuses({});
   };
 
-  const handleDownload = () => {
-    window.open(`${API_URL}/api/download`, '_blank');
-  };
+  const activeAgent = Object.keys(nodeStatuses).find(k => k !== 'SYSTEM' && nodeStatuses[k] === 'running') || null;
+  const completedAgents = Object.keys(nodeStatuses).filter(k => k !== 'SYSTEM' && nodeStatuses[k] === 'success' && AGENTS.some(a => a.id === k));
+  const progress = Math.min(1, completedAgents.length / AGENTS.length);
 
   return (
-    <div className="app-container">
-      <header className="header">
-        <h1>EDA AGENT</h1>
-      </header>
-
-      {status === 'idle' && (
-        <section className="glass-panel">
-          <div 
-            className="upload-zone"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <UploadCloud className="upload-icon" size={48} />
-            <div className="upload-text">
-              {file ? file.name : "Click or drag dataset here"}
-            </div>
-            <div className="upload-subtext">
-              Supports CSV & Excel files
-            </div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="file-input" 
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileChange}
-            />
-          </div>
+    <>
+      <div className="bg-grid" />
+      <main className="relative z-10 flex flex-col min-h-screen px-4 sm:px-6 py-8 max-w-7xl mx-auto w-full">
+        
+        {/* HERO SECTION */}
+        <section className="py-8 flex flex-col items-center text-center animate-in fade-in duration-700">
+          <h1 className="font-display text-4xl md:text-6xl font-bold tracking-tight mb-4 mt-6">
+            Automated <span className="text-gradient">EDA Agent</span>
+          </h1>
           
-          <div style={{ padding: '0 2rem 2rem', textAlign: 'center' }}>
-            <button 
-              className="btn" 
-              disabled={!file} 
-              onClick={startPipeline}
-            >
-              <Server size={20} />
-              Run Auto EDA Pipeline
-            </button>
+          <p className="text-muted-foreground text-base md:text-lg max-w-2xl mb-8 font-sans">
+            An intelligent, multi-agent system powered by LangGraph that automates end-to-end Exploratory Data Analysis.
+          </p>
+          
+          <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex items-center gap-2 bg-card px-4 py-2 rounded-lg border border-border">
+              <Database size={16} className="text-mint" />
+              <span className="text-xs font-medium">8 Autonomous Agents</span>
+            </div>
+            <div className="flex items-center gap-2 bg-card px-4 py-2 rounded-lg border border-border">
+              <Activity size={16} className="text-mint" />
+              <span className="text-xs font-medium">Interactive Plotly Charts</span>
+            </div>
+            <div className="flex items-center gap-2 bg-card px-4 py-2 rounded-lg border border-border">
+              <Code size={16} className="text-mint" />
+              <span className="text-xs font-medium">Safe Python Execution</span>
+            </div>
           </div>
         </section>
-      )}
 
-      {(status === 'running' || status === 'uploading' || status === 'error' || status === 'complete') && (
-        <section className="glass-panel pipeline-monitor">
-          <div className="monitor-header">
-            <h2><Activity size={24} /> Pipeline Monitor</h2>
-            <div className={`status-badge ${status === 'complete' ? 'complete' : ''}`}>
-              {status === 'running' && <span className="pulse">●</span>}
-              {status === 'complete' && <CheckCircle size={16} />}
-              {status === 'error' && <AlertCircle size={16} />}
-              {status.toUpperCase()}
+        {/* UPLOAD ZONE */}
+        {status === 'idle' && (
+          <section className="mb-12 animate-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-xl font-display font-semibold mb-6 flex items-center gap-2">
+              <UploadCloud className="text-primary" /> Select Dataset
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div 
+                className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-card hover:border-primary/50 transition-colors group"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
+                <UploadCloud size={48} className="text-muted-foreground group-hover:text-primary transition-colors mb-4" />
+                <p className="text-lg font-medium">{file ? file.name : "Click or drag dataset here"}</p>
+                <p className="text-sm text-muted-foreground mt-2">Supports CSV & Excel files</p>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileChange}
+                />
+              </div>
+
+              <div className="flex flex-col justify-center items-center p-8 bg-card border border-border rounded-xl">
+                <button 
+                  className="bg-primary hover:bg-mint-bright text-primary-foreground font-semibold py-3 px-8 rounded-lg shadow-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={!file} 
+                  onClick={startPipeline}
+                >
+                  <Activity size={20} />
+                  Run Auto EDA Pipeline
+                </button>
+              </div>
             </div>
-          </div>
-          
-          <div className="pipeline-graph">
-            {PIPELINE_NODES.map((node, index) => {
-              const nodeStatus = nodeStatuses[node] || 'pending'; 
-              const details = getNodeDetails(node);
-              const isLast = index === PIPELINE_NODES.length - 1;
-              const connectorActive = nodeStatus === 'success';
+          </section>
+        )}
 
-              return (
-                <div key={node} className="pipeline-node-container">
-                  <div className={`pipeline-node status-${nodeStatus}`}>
-                    <div className="node-icon">
-                      {nodeStatus === 'success' ? <Check size={28} /> : details.icon}
+        {/* PIPELINE FLOW */}
+        {(status === 'running' || status === 'complete' || status === 'uploading') && (
+          <section className="mb-12 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-display font-semibold">Execution Pipeline</h2>
+              <span className="text-sm font-mono text-primary">{status === 'complete' ? 100 : Math.round(progress * 100)}% Complete</span>
+            </div>
+            
+            <div className="relative h-2 bg-card rounded-full overflow-hidden mb-8 border border-border">
+              <div 
+                className="absolute top-0 left-0 h-full bg-primary transition-all duration-500 ease-out"
+                style={{ width: `${status === 'complete' ? 100 : progress * 100}%` }}
+              />
+            </div>
+
+            <div className="flex flex-wrap justify-center md:justify-between items-center gap-y-8 gap-x-2 relative">
+              <div className="hidden md:block absolute top-6 left-6 right-6 h-0.5 bg-border -z-10" />
+              
+              {AGENTS.map((agent) => {
+                const nodeStatus = nodeStatuses[agent.id] || 'pending';
+                const isCompleted = nodeStatus === 'success';
+                const isActive = nodeStatus === 'running' || nodeStatus === 'uploading';
+                
+                const IconComponent = Icons[agent.icon] || Icons.Activity;
+
+                return (
+                  <div key={agent.id} className="flex flex-col items-center gap-2 z-10 w-24">
+                    <div 
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        isCompleted 
+                          ? 'bg-primary/20 text-primary border-2 border-primary shadow-glow' 
+                          : isActive
+                          ? 'bg-primary/10 text-primary border-2 border-primary animate-pulse shadow-glow'
+                          : 'bg-card text-muted-foreground border-2 border-border'
+                      }`}
+                    >
+                      {isCompleted ? <Icons.Check size={20} strokeWidth={3} /> : <IconComponent size={20} />}
                     </div>
-                    <div className="node-label">{details.label}</div>
+                    <span className={`text-[10px] font-semibold text-center uppercase tracking-wider ${isActive || isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {agent.name}
+                    </span>
                   </div>
-                  {!isLast && (
-                     <div className={`pipeline-connector ${connectorActive ? 'active' : ''}`} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+                );
+              })}
+            </div>
+          </section>
+        )}
 
-      {status === 'complete' && (
-        <section className="glass-panel report-viewer">
-          <div className="monitor-header">
-            <h2><FileText size={24} /> Final Report</h2>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }} onClick={handleDownload}>
-                <Download size={16} /> Download All Files
+        {/* BENTO GRID (Terminal Removed) */}
+        {(status === 'running' || status === 'complete') && (
+          <div className="mb-12 animate-in slide-in-from-bottom-8 duration-700">
+            <h2 className="text-xl font-display font-semibold mb-6">Agent Fleet</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {AGENTS.map((agent, i) => {
+                const nodeStatus = nodeStatuses[agent.id] || 'pending';
+                const isCompleted = nodeStatus === 'success';
+                const isActive = nodeStatus === 'running' || nodeStatus === 'uploading';
+                const isFailed = nodeStatus === 'failed';
+                
+                const IconComponent = Icons[agent.icon] || Icons.Bot;
+
+                return (
+                  <div 
+                    key={agent.id} 
+                    className={`relative overflow-hidden bg-card border rounded-2xl p-5 transition-all duration-300 col-span-1 ${
+                      isActive ? 'border-primary shadow-glow scale-[1.02] z-10' : 
+                      isFailed ? 'border-red-500' : 'border-border'
+                    }`}
+                  >
+                    {(isActive || isCompleted) && (
+                      <div className={`absolute -bottom-8 -right-8 w-32 h-32 rounded-full blur-3xl opacity-20 ${isActive ? 'bg-primary' : 'bg-accent'}`} />
+                    )}
+                    
+                    <div className="flex justify-between items-start mb-4">
+                      <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/20 text-primary' : isFailed ? 'bg-red-500/20 text-red-500' : 'bg-background text-muted-foreground'}`}>
+                        <IconComponent size={24} />
+                      </div>
+                      
+                      <div className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full border ${
+                        isActive ? 'border-primary/50 text-primary bg-primary/10 animate-pulse' :
+                        isCompleted ? 'border-accent text-accent bg-accent/10' :
+                        isFailed ? 'border-red-500/50 text-red-500 bg-red-500/10' :
+                        'border-border text-muted-foreground'
+                      }`}>
+                        {isActive ? 'Running' : isCompleted ? 'Success' : isFailed ? 'Failed' : 'Standby'}
+                      </div>
+                    </div>
+                    
+                    <h3 className="font-display font-semibold text-lg text-foreground mb-1">{agent.name}</h3>
+                    <p className="text-xs text-muted-foreground mb-4">{agent.role}</p>
+                    
+                    <div className="flex items-end justify-between mt-auto">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-muted-foreground uppercase">{agent.kpiLabel}</span>
+                        <span className={`font-mono text-lg ${isCompleted || isActive ? 'text-foreground' : 'text-muted-foreground/30'}`}>
+                          {isCompleted ? '100%' : isActive ? '...' : '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* REPORT */}
+        {status === 'complete' && (
+          <section className="mb-12 animate-in slide-in-from-bottom-8 duration-700 relative">
+            <div className="absolute -top-14 right-0 flex gap-2">
+              <button 
+                onClick={() => window.open(`${API_URL}/api/download`, '_blank')}
+                className="flex items-center gap-2 bg-card hover:bg-card/80 text-foreground border border-border px-4 py-2 rounded-lg transition-colors font-medium text-sm"
+              >
+                <Download size={16} /> Download
               </button>
-              <button className="btn" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', backgroundColor: 'var(--bg-lighter)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }} onClick={resetState}>
+              <button 
+                onClick={resetState}
+                className="flex items-center gap-2 bg-primary/20 hover:bg-primary/30 text-primary border border-primary px-4 py-2 rounded-lg transition-colors font-medium text-sm shadow-glow"
+              >
                 <RefreshCw size={16} /> Run Another Analysis
               </button>
             </div>
-          </div>
-          <div className="report-content">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportContent}</ReactMarkdown>
-          </div>
-          
-          {chartPaths.length > 0 && (
-            <>
-              <div className="monitor-header" style={{ marginTop: '3rem' }}>
-                <h2><BarChart2 size={24} /> Interactive Visualizations</h2>
-              </div>
-              <div className="chart-grid">
-                {/* 
-                  chartPaths usually look like "sandbox/plots/chart_name.html".
-                  Our FastAPI backend mounts this at "/api/plots/".
-                  We need to extract the filename and point the iframe to the API.
-                */}
-                {chartPaths.map((path, i) => {
-                  const filename = path.split('/').pop().replace('\\', '');
-                  return (
-                    <div key={i} className="chart-card">
-                      <iframe 
-                        src={`${API_URL}/api/plots/${filename}`}
-                        className="chart-frame"
-                        title={`Chart ${i}`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </section>
-      )}
-    </div>
+
+            <h2 className="text-xl font-display font-semibold mb-6 flex items-center gap-2">
+              <FileSpreadsheet className="text-primary" /> Final Report
+            </h2>
+            
+            <div className="bg-card border border-border rounded-xl p-8 prose prose-invert prose-primary prose-headings:font-bold prose-headings:text-foreground max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportContent}</ReactMarkdown>
+            </div>
+          </section>
+        )}
+
+        {/* CHARTS */}
+        {chartPaths.length > 0 && (
+          <section className="mb-12 animate-in slide-in-from-bottom-8 duration-700">
+            <h2 className="text-xl font-display font-semibold mb-6 flex items-center gap-2">
+              <Activity className="text-primary" /> Generated Visualizations
+            </h2>
+            <div className="flex flex-col gap-8">
+              {chartPaths.map((path, i) => {
+                const fname = path.split('/').pop().replace('\\', '');
+                return (
+                  <div key={i} className="bg-card border border-border rounded-xl p-4 flex flex-col h-[600px] w-full">
+                    <h3 className="text-sm font-medium mb-2 text-muted-foreground truncate">{fname}</h3>
+                    <iframe 
+                      src={`${API_URL}/api/plots/${fname}`}
+                      className="w-full h-full border-none rounded-lg bg-white"
+                      title={`Chart ${i}`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+      </main>
+    </>
   );
 }
 
