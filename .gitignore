@@ -11,8 +11,10 @@ __pycache__/
 
 # Environment Variables
 .env
+*.env
 
 # Data and Outputs
+workspaces/
 data/
 sandbox/
 reports/
@@ -24,6 +26,6 @@ reports/
 *.swp
 *.swo
 
-# LangGraph / LangChain specific (if any local state files are generated)
+# LangGraph / SQLite local state
 *.sqlite
 *.db

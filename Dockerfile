@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies required for data processing / Plotly
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -11,14 +11,18 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create necessary directories for the EDA pipeline
-RUN mkdir -p data sandbox/plots reports
+# Create necessary workspace directories
+RUN mkdir -p workspaces data sandbox/plots reports
 
-# Copy the rest of the application
-COPY . .
+# Create non-root user for security hardening
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 
-# Expose the port FastAPI runs on
+# Copy application files
+COPY --chown=appuser:appuser . .
+
+USER appuser
+
 EXPOSE 8000
 
-# Command to run the application
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

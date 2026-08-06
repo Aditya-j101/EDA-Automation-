@@ -1,54 +1,21 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage
 from app.agents.state import AgentState
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.6-flash",
-    temperature=0.1,
-    max_retries=3,
-)
+from app.core.cleaner import run_cleaning
 
 def cleaner_node(state: AgentState):
-    """This is the Cleaner Agent. It generates code to clean the dataset based on the Profiler's findings"""
-    system_prompt = """
-    You are an Expert Data Quality Engineer. Your job is to write Python code to clean the dataset.
-    You must output ONLY valid Python code. Do not include markdown formatting like ```python.
+    dataset_path = state.get("dataset_path", "data.csv")
+    target_col = state.get("target_col")
+    workspace_dir = state.get("workspace_dir")
+    run_id = state.get("run_id", "default")
     
-    CRITICAL RULES:
-    - Wrap ALL code in a single try-except block so errors are printed, not raised.
-    - Do NOT use `dtype == 'object'` to check for string columns. Modern pandas uses StringDtype. 
-    - ALWAYS use `df.select_dtypes(include='number')` for numeric columns and `df.select_dtypes(exclude='number')` for non-numeric columns.
-    - For imputation, use: `for col in df.select_dtypes(include='number').columns: df[col] = df[col].fillna(df[col].median())` and `for col in df.select_dtypes(exclude='number').columns: df[col] = df[col].fillna(df[col].mode()[0])`.
-    - Do NOT import sklearn or scipy. Only use pandas and numpy.
-    - Ensure the data/ directory exists with: import os; os.makedirs('data', exist_ok=True)
+    result = run_cleaning(
+        dataset_path,
+        target_col=target_col,
+        workspace_dir=workspace_dir,
+        run_id=run_id
+    )
     
-    The code should:
-    1. Load the dataset from the provided path.
-    2. Handle missing values using advanced imputation (Median for numeric data, Mode for non-numeric data). DO NOT simply drop rows.
-    3. Perform Outlier Analysis: Detect outliers using robust statistical methods (like IQR or Z-scores) on numeric columns ONLY.
-    4. Handle outliers by Winsorizing (capping them at the 1st and 99th percentiles) rather than deleting them, to preserve data integrity.
-    5. Perform Post-Cleaning Validation: Programmatically verify that missing values are gone, constraints are met. Print the results of this validation.
-    6. Save the cleaned dataset as 'data/cleaned_data.csv' and print a highly detailed summary of the cleaning steps performed.
-    
-    The dataset is located at: {dataset_path}
-    """
-
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Please write the Python code to clean this dataset.")
-    ])
-
-    chain = prompt | llm
-    response = chain.invoke({"dataset_path": state.get("dataset_path", "data.csv")})
-    content = response.content if isinstance(response.content, str) else response.content[0].get("text", str(response.content))
-    generated_code = content.replace("```python", "").replace("```", "").strip()
-    
-    return {"messages": [HumanMessage(content=f"Generated Code:\n{generated_code}")]}
-
-    
+    return {
+        "dataset_path": result["output_path"],
+        "messages": [AIMessage(content=f"Data Cleaning & Missingness Analysis Complete:\n{result['summary_text']}")]
+    }

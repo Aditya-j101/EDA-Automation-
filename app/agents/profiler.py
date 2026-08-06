@@ -1,61 +1,28 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage
 from app.agents.state import AgentState
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.6-flash",
-    temperature=0,
-    max_retries=3,
-)
+from app.core.evidence import build_structured_evidence
 
 def profiler_node(state: AgentState):
-    """This is a profiler agent. It generates the code to instpect the dataset.
-    and extract its schema, data types, and missing values.
-    """
-
-    system_prompt = """
-    You are an Expert Data Profiler. Your job is to write Python code to perform deep data discovery and validation.
-    You must output ONLY valid Python code. Do not include markdown formatting like ```python.
+    dataset_path = state.get("dataset_path", "data.csv")
+    target_col = state.get("target_col")
     
-    CRITICAL RULES:
-    - Wrap ALL code in a single try-except block so errors are printed, not raised.
-    - Do NOT use `dtype == 'object'` to check for string columns. Modern pandas uses StringDtype.
-    - ALWAYS use `df.select_dtypes(include='number')` for numeric columns and `df.select_dtypes(exclude='number')` for non-numeric columns.
-    - Do NOT use scipy stats tests (chi2_contingency, ttest_ind, normaltest) on raw DataFrames. They will crash on string columns.
-    - Do NOT import sklearn. Only use pandas and numpy.
+    evidence = build_structured_evidence(dataset_path, target_col=target_col)
     
-    The code should:
-    1. Load the dataset from the provided path using pd.read_csv().
-    2. Data-Quality and Schema Validation:
-       - Use df.dtypes and df.select_dtypes() to identify column types.
-       - For numeric columns only: check for negative values where they shouldn't exist.
-       - Check for duplicate rows with df.duplicated().sum().
-    3. Semantic Column Classification:
-       - For each column, classify it as: numeric-continuous (nunique > 20), numeric-discrete (nunique <= 20), categorical (string with nunique < 20), text (string with nunique >= 20), or datetime (try pd.to_datetime).
-    4. Missing-Value Analysis:
-       - Print the percentage of missing values per column.
-       - Simply state if missingness is high (>10%), moderate (1-10%), or low (<1%).
-       - Do NOT attempt statistical tests for MAR/MCAR/MNAR.
-    5. Print a comprehensive text summary.
+    schema = evidence.get("schema", {})
+    quality = evidence.get("quality", {})
     
-    The dataset is located at: {dataset_path}
-    """
-
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system",system_prompt),
-        ("human","Please write the python code to profile this dataset.")
-    ])
-
-    chain = prompt | llm
-    response  = chain.invoke({"dataset_path":state.get("dataset_path","data.csv")})
-    content = response.content if isinstance(response.content, str) else response.content[0]["text"]
-    generated_code = content.replace("```python", "").replace("```", "").strip()
-
-    return {"messages": [HumanMessage(content=f"Generated Code:\n{generated_code}")]}
-
+    summary_text = (
+        f"Schema & Deterministic Evidence Engine Complete:\n"
+        f"  - Shape: {schema.get('shape')}\n"
+        f"  - Target Column: '{schema.get('target_col')}'\n"
+        f"  - Quality Score: {quality.get('quality_score', {}).get('overall_score')}/100 [Grade: {quality.get('quality_score', {}).get('grade')}]\n"
+        f"  - Missingness: {quality.get('total_nulls')} nulls ({quality.get('overall_missing_pct')}%)\n"
+        f"  - Duplicates: {quality.get('duplicate_rows')} rows ({quality.get('duplicate_pct')}%)"
+    )
+    
+    return {
+        "target_col": schema.get("target_col"),
+        "schema_info": schema,
+        "eda_evidence": evidence,
+        "messages": [AIMessage(content=summary_text)]
+    }
