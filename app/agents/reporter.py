@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Do not pass temperature parameter to gemini-3.6-flash to avoid UserWarning
 llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", max_retries=3)
 
 def reporter_node(state: AgentState):
@@ -20,6 +19,12 @@ def reporter_node(state: AgentState):
     """
     run_id = state.get("run_id", "default")
     workspace_dir = state.get("workspace_dir")
+    
+    # BULLETPROOF: If workspace_dir is lost during LangGraph state propagation,
+    # reconstruct it from run_id (the API always uses workspaces/<run_id>)
+    if not workspace_dir and run_id and run_id != "default":
+        workspace_dir = os.path.join("workspaces", run_id)
+        logging.info(f"[run_id={run_id}] Reconstructed workspace_dir from run_id: {workspace_dir}")
     
     validated_claims = state.get("validated_claims", [])
     evidence = state.get("eda_evidence", {})
@@ -109,6 +114,7 @@ def reporter_node(state: AgentState):
     if final_chart_files:
         report_content += "\n\n## Interactive Visualizations\n\n"
         for filename in sorted(final_chart_files):
+            # Always use workspace URL when run_id is available
             if workspace_dir:
                 chart_src = f"/api/plots/{run_id}/plots/{filename}"
             else:

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0, max_retries=3)
+llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", max_retries=3)
 
 # We use Pydantic to force the LLM to output exactly what we want
 class RouteDecision(BaseModel):
