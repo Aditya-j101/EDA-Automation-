@@ -2,10 +2,10 @@ import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import * as Icons from 'lucide-react';
-import { UploadCloud, Database, Activity, Code, FileSpreadsheet, RefreshCw, Download, ShieldCheck, CheckCircle2, Sliders, Brain, FileText, BarChart3, ChevronRight } from 'lucide-react';
+import { UploadCloud, Database, Activity, Code, FileSpreadsheet, RefreshCw, Download, ShieldCheck, CheckCircle2, Sliders, Brain, FileText, BarChart3, ChevronRight, AlertCircle } from 'lucide-react';
 import './index.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
 const PIPELINE_STAGES = [
   {
@@ -72,6 +72,7 @@ function App() {
   const [nodeStatuses, setNodeStatuses] = useState({});
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeNodeDetails, setActiveNodeDetails] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   
   const fileInputRef = useRef(null);
 
@@ -100,6 +101,7 @@ function App() {
     setChartPaths([]);
     setNodeStatuses({ INGESTION: 'running' });
     setActiveNodeDetails('Starting dataset ingestion...');
+    setErrorMessage('');
     setStatus('uploading');
     
     const formData = new FormData();
@@ -113,7 +115,7 @@ function App() {
       
       if (!uploadRes.ok) {
         const errData = await uploadRes.json().catch(() => ({}));
-        throw new Error(errData.detail || "Upload failed");
+        throw new Error(errData.detail || `Upload failed with status ${uploadRes.status}`);
       }
       
       const uploadData = await uploadRes.json();
@@ -181,6 +183,7 @@ function App() {
       
     } catch (err) {
       console.error("Pipeline start error:", err);
+      setErrorMessage(err.message || "Failed to start pipeline.");
       setStatus('error');
       setNodeStatuses(prev => ({ ...prev, INGESTION: 'failed' }));
     }
@@ -201,6 +204,7 @@ function App() {
       }
     } catch (err) {
        console.error("Report fetch error:", err);
+       setErrorMessage(err.message || "Failed to fetch report from backend server.");
        setStatus('error');
     }
   };
@@ -214,6 +218,7 @@ function App() {
     setChartPaths([]);
     setNodeStatuses({});
     setActiveNodeDetails('');
+    setErrorMessage('');
   };
 
   // Helper to determine stage state
@@ -265,6 +270,28 @@ function App() {
           </div>
         </section>
 
+        {/* ERROR DISPLAY SECTION */}
+        {status === 'error' && (
+          <section className="mb-10 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-card border border-red-500/50 rounded-xl p-8 flex flex-col items-center text-center max-w-2xl mx-auto shadow-lg">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 text-red-500">
+                <AlertCircle size={28} />
+              </div>
+              <h3 className="text-xl font-display font-bold text-red-400 mb-2">Pipeline Execution Alert</h3>
+              <p className="text-sm text-muted-foreground mb-6 max-w-md">
+                {errorMessage || "An error occurred during pipeline execution. Please verify server connection and try again."}
+              </p>
+              <button 
+                onClick={resetState}
+                className="bg-primary hover:bg-mint-bright text-primary-foreground font-semibold py-2.5 px-6 rounded-lg transition-all flex items-center gap-2 text-sm shadow-glow"
+              >
+                <RefreshCw size={16} />
+                Reset & Select Dataset
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* UPLOAD ZONE */}
         {status === 'idle' && (
           <section className="mb-10 animate-in slide-in-from-bottom-4 duration-500">
@@ -306,7 +333,7 @@ function App() {
         )}
 
         {/* CLEAN 5-STAGE PIPELINE STEPPER */}
-        {(status === 'running' || status === 'complete' || status === 'uploading') && (
+        {(status === 'running' || status === 'complete' || status === 'uploading' || status === 'error') && (
           <section className="mb-10 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-display font-semibold flex items-center gap-2">
@@ -348,56 +375,52 @@ function App() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <div className={`p-2 rounded-lg ${
-                        isActive ? 'bg-primary/20 text-primary animate-pulse' :
-                        isCompleted ? 'bg-accent/20 text-accent' :
-                        isFailed ? 'bg-red-500/20 text-red-500' :
-                        'bg-background text-muted-foreground'
-                      }`}>
-                        <StageIcon size={18} />
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg ${isActive ? 'bg-primary/20 text-primary' : isCompleted ? 'bg-mint/20 text-mint' : 'bg-muted text-muted-foreground'}`}>
+                          <StageIcon size={16} />
+                        </div>
+                        <span className="text-xs font-mono text-muted-foreground">0{idx + 1}</span>
                       </div>
-                      <span className={`text-[9px] uppercase font-mono tracking-wider font-bold px-2 py-0.5 rounded-full border ${
-                        isActive ? 'border-primary/50 text-primary bg-primary/10 animate-pulse' :
-                        isCompleted ? 'border-accent/50 text-accent bg-accent/10' :
-                        isFailed ? 'border-red-500/50 text-red-500 bg-red-500/10' :
-                        'border-border text-muted-foreground'
-                      }`}>
-                        {isActive ? 'Active' : isCompleted ? 'Passed' : isFailed ? 'Failed' : 'Standby'}
-                      </span>
+                      
+                      {isCompleted && <CheckCircle2 size={16} className="text-mint animate-in zoom-in" />}
+                      {isActive && (
+                        <span className="flex h-2 w-2 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                        </span>
+                      )}
                     </div>
-
-                    <h3 className="font-display font-semibold text-xs text-foreground mb-1">{stage.name}</h3>
-                    <p className="text-[10px] text-muted-foreground leading-snug">{stage.description}</p>
+                    
+                    <h3 className="text-xs font-bold font-display mb-1">{stage.name}</h3>
+                    <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">{stage.description}</p>
                   </div>
                 );
               })}
             </div>
 
-            {/* LIVE ACTIVITY STATUS DRAWER */}
-            {activeAgent && (
-              <div className="mt-4 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center justify-between animate-pulse">
-                <div className="flex items-center gap-2">
-                  <Activity size={16} className="text-primary animate-spin" />
-                  <span className="text-xs font-semibold text-foreground">Executing Node: {activeAgent.name} ({activeAgent.role})</span>
+            {/* LIVE ACTIVITY DRAWER */}
+            {activeNodeDetails && (
+              <div className="mt-4 bg-card/80 border border-primary/20 rounded-lg p-3 text-xs flex items-center gap-3 animate-in fade-in">
+                <div className="flex items-center gap-2 text-primary font-medium shrink-0">
+                  <Activity size={14} className="animate-spin text-primary" />
+                  <span>{activeAgent ? activeAgent.name : 'Processing'}:</span>
                 </div>
-                {activeNodeDetails && (
-                  <span className="text-[11px] text-muted-foreground truncate max-w-md hidden sm:inline">{activeNodeDetails.slice(0, 100)}...</span>
-                )}
+                <span className="text-muted-foreground font-mono truncate">{activeNodeDetails}</span>
               </div>
             )}
           </section>
         )}
 
-        {/* CATEGORIZED AGENT FLEET BENTO GRID */}
-        {(status === 'running' || status === 'complete') && (
-          <div className="mb-10 animate-in slide-in-from-bottom-8 duration-700">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+        {/* AGENT FLEET BENTO GRID */}
+        {(status === 'running' || status === 'complete' || status === 'uploading' || status === 'error') && (
+          <section className="mb-10 animate-in slide-in-from-bottom-6 duration-700">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
               <h2 className="text-lg font-display font-semibold flex items-center gap-2">
-                <Brain size={18} className="text-primary" /> Specialist Agents & Verifiers
+                <Brain size={18} className="text-primary" /> Specialist Agents ({AGENTS.length})
               </h2>
-
+              
               {/* CATEGORY TABS */}
-              <div className="flex flex-wrap gap-1.5 bg-card p-1 rounded-xl border border-border">
+              <div className="flex items-center bg-card border border-border rounded-lg p-1 text-xs gap-1">
                 {[
                   { id: 'all', label: 'All (13)' },
                   { id: 'specialists', label: 'Specialists (3)' },
@@ -408,9 +431,9 @@ function App() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveCategory(tab.id)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      activeCategory === tab.id
-                        ? 'bg-primary text-primary-foreground shadow-sm'
+                    className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                      activeCategory === tab.id 
+                        ? 'bg-primary text-primary-foreground font-semibold' 
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -420,78 +443,69 @@ function App() {
               </div>
             </div>
 
-            {/* FLEET CARDS GRID */}
+            {/* BENTO GRID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredAgents.map((agent) => {
-                const nodeStatus = nodeStatuses[agent.id] || 'pending';
-                const isCompleted = nodeStatus === 'success';
-                const isActive = nodeStatus === 'running' || nodeStatus === 'uploading';
-                const isFailed = nodeStatus === 'failed';
+                const nodeState = nodeStatuses[agent.id] || 'pending';
+                const isCompleted = nodeState === 'success';
+                const isActive = nodeState === 'running';
+                const isFailed = nodeState === 'failed';
                 
-                const IconComponent = Icons[agent.icon] || Icons.Bot;
+                const AgentIcon = Icons[agent.icon] || Icons.Code;
 
                 return (
                   <div 
-                    key={agent.id} 
-                    className={`relative overflow-hidden bg-card border rounded-xl p-4 transition-all duration-300 ${
-                      isActive ? 'border-primary shadow-glow scale-[1.01] z-10' : 
-                      isFailed ? 'border-red-500' : 'border-border/80'
+                    key={agent.id}
+                    className={`bg-card border rounded-xl p-3.5 flex flex-col justify-between transition-all duration-300 ${
+                      isActive 
+                        ? 'border-primary shadow-glow scale-[1.02] bg-card' 
+                        : isCompleted
+                        ? 'border-accent/40 bg-card'
+                        : isFailed
+                        ? 'border-red-500 bg-red-500/5'
+                        : 'border-border opacity-75'
                     }`}
                   >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/20 text-primary' : isFailed ? 'bg-red-500/20 text-red-500' : 'bg-background text-muted-foreground'}`}>
-                        <IconComponent size={20} />
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/20 text-primary' : isCompleted ? 'bg-mint/20 text-mint' : 'bg-muted text-muted-foreground'}`}>
+                          <AgentIcon size={16} />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold">{agent.name}</h3>
+                          <p className="text-[10px] text-muted-foreground">{agent.role}</p>
+                        </div>
                       </div>
                       
-                      <div className={`text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full border ${
-                        isActive ? 'border-primary/50 text-primary bg-primary/10 animate-pulse' :
-                        isCompleted ? 'border-accent text-accent bg-accent/10' :
-                        isFailed ? 'border-red-500/50 text-red-500 bg-red-500/10' :
-                        'border-border text-muted-foreground'
-                      }`}>
-                        {isActive ? 'Running' : isCompleted ? 'Verified' : isFailed ? 'Failed' : 'Standby'}
-                      </div>
+                      {isCompleted && (
+                        <span className="text-[10px] font-medium text-mint bg-mint/10 border border-mint/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 size={10} /> Done
+                        </span>
+                      )}
+                      {isActive && (
+                        <span className="text-[10px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Activity size={10} className="animate-spin" /> Active
+                        </span>
+                      )}
+                      {isFailed && (
+                        <span className="text-[10px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
+                          Failed
+                        </span>
+                      )}
+                      {nodeState === 'pending' && (
+                        <span className="text-[10px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-full">
+                          Waiting
+                        </span>
+                      )}
                     </div>
-                    
-                    <h3 className="font-display font-semibold text-sm text-foreground mb-0.5">{agent.name}</h3>
-                    <p className="text-[11px] text-muted-foreground">{agent.role}</p>
                   </div>
                 );
               })}
             </div>
-          </div>
-        )}
-
-        {/* REPORT */}
-        {status === 'complete' && (
-          <section className="mb-10 animate-in slide-in-from-bottom-8 duration-700 relative">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-display font-semibold flex items-center gap-2">
-                <FileSpreadsheet className="text-primary" /> Verified Executive Report
-              </h2>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => window.open(`${API_URL}/api/download/${runId}`, '_blank')}
-                  className="flex items-center gap-1.5 bg-card hover:bg-card/80 text-foreground border border-border px-3 py-1.5 rounded-lg transition-colors font-medium text-xs"
-                >
-                  <Download size={14} /> Download Zip
-                </button>
-                <button 
-                  onClick={resetState}
-                  className="flex items-center gap-1.5 bg-primary/20 hover:bg-primary/30 text-primary border border-primary px-3 py-1.5 rounded-lg transition-colors font-medium text-xs shadow-glow"
-                >
-                  <RefreshCw size={14} /> Run Another Analysis
-                </button>
-              </div>
-            </div>
-            
-            <div className="bg-card border border-border rounded-xl p-8 prose prose-invert prose-primary prose-headings:font-bold prose-headings:text-foreground max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportContent}</ReactMarkdown>
-            </div>
           </section>
         )}
 
-        {/* CHARTS */}
+        {/* EMBEDDED PLOTLY VISUALIZATIONS SECTION */}
         {chartPaths.length > 0 && (
           <section className="mb-10 animate-in slide-in-from-bottom-8 duration-700">
             <h2 className="text-lg font-display font-semibold mb-4 flex items-center gap-2">
@@ -509,7 +523,7 @@ function App() {
                   chartUrl = runId ? `${API_URL}/api/plots/${runId}/plots/${fname}` : `${API_URL}/api/sandbox/plots/${fname}`;
                 }
                 return (
-                  <div key={i} className="bg-card border border-border rounded-xl p-4 flex flex-col h-[550px] w-full">
+                  <div key={i} className="bg-card border border-border rounded-xl p-4 flex flex-col h-[550px] w-full shadow-lg">
                     <h3 className="text-xs font-medium mb-2 text-muted-foreground truncate">{fname}</h3>
                     <iframe 
                       src={chartUrl}
@@ -519,6 +533,44 @@ function App() {
                   </div>
                 );
               })}
+            </div>
+          </section>
+        )}
+
+        {/* FINAL EXECUTIVE REPORT SECTION */}
+        {reportContent && (
+          <section className="mb-10 animate-in slide-in-from-bottom-8 duration-700">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+              <h2 className="text-lg font-display font-semibold flex items-center gap-2">
+                <FileText className="text-primary" /> Verified Executive Report
+              </h2>
+              
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={resetState} 
+                  className="bg-card hover:bg-muted text-foreground border border-border font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-xs"
+                >
+                  <RefreshCw size={14} />
+                  Analyze Another Dataset
+                </button>
+                
+                <a 
+                  href={`${API_URL}/api/download/${runId}`} 
+                  download 
+                  className="bg-primary hover:bg-mint-bright text-primary-foreground font-semibold py-2 px-4 rounded-lg transition-all flex items-center gap-2 text-xs shadow-glow"
+                >
+                  <Download size={14} />
+                  Download Report (.md)
+                </a>
+              </div>
+            </div>
+            
+            <div className="bg-card border border-border rounded-xl p-6 sm:p-8 shadow-xl">
+              <div className="prose prose-invert prose-mint max-w-none prose-headings:font-display prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-sm prose-p:leading-relaxed prose-li:text-sm prose-td:text-xs prose-th:text-xs prose-table:border prose-table:border-border prose-th:bg-muted/50 prose-td:border-b prose-td:border-border/50">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {reportContent}
+                </ReactMarkdown>
+              </div>
             </div>
           </section>
         )}
