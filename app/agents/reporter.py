@@ -91,6 +91,8 @@ def reporter_node(state: AgentState):
             filename = os.path.basename(path)
             if workspace_dir:
                 chart_src = f"/api/plots/{run_id}/plots/{filename}"
+            elif "sandbox" in path:
+                chart_src = f"/api/sandbox/plots/{filename}"
             else:
                 chart_src = f"/api/plots/{filename}"
             report_content += f'<iframe src="{chart_src}" width="100%" height="600" style="border:none; margin-bottom: 20px;"></iframe>\n\n'

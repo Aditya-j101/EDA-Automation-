@@ -61,7 +61,13 @@ ALLOWED_EXTENSIONS = {".csv", ".xlsx", ".xls"}
 RUN_ID_REGEX = re.compile(r"^[a-f0-9]{12,32}$")
 
 os.makedirs("workspaces", exist_ok=True)
+os.makedirs("sandbox/plots", exist_ok=True)
+os.makedirs("data", exist_ok=True)
+os.makedirs("reports", exist_ok=True)
+
 app.mount("/api/plots", StaticFiles(directory="workspaces"), name="plots")
+app.mount("/api/sandbox", StaticFiles(directory="sandbox"), name="sandbox_plots")
+app.mount("/sandbox", StaticFiles(directory="sandbox"), name="sandbox_root")
 
 
 def validate_run_id(run_id: str):
