@@ -3,13 +3,15 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import AIMessage
 from app.agents.state import AgentState
 import os
+import shutil
 import json
 import logging
 from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.1, max_retries=3)
+# Do not pass temperature parameter to gemini-3.6-flash to avoid UserWarning
+llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", max_retries=3)
 
 def reporter_node(state: AgentState):
     """
@@ -29,18 +31,37 @@ def reporter_node(state: AgentState):
 
     evidence_summary = json.dumps(evidence, indent=2, default=str)
     
-    chart_paths = state.get("chart_paths", [])
+    raw_chart_paths = state.get("chart_paths", [])
     if workspace_dir:
-        plots_dir = os.path.join(workspace_dir, "plots")
+        target_plots_dir = os.path.join(workspace_dir, "plots")
         report_file_path = os.path.join(workspace_dir, "reports", "final_report.md")
     else:
-        plots_dir = os.path.join("sandbox", "plots")
+        target_plots_dir = os.path.join("sandbox", "plots")
         report_file_path = "reports/final_report.md"
         
-    if os.path.exists(plots_dir):
-        file_charts = [os.path.join(plots_dir, f).replace('\\', '/') for f in os.listdir(plots_dir) if f.endswith(".html")]
-        chart_paths = list(set(chart_paths + file_charts))
-        
+    os.makedirs(target_plots_dir, exist_ok=True)
+    
+    # Gather all generated charts and sync to target_plots_dir if needed
+    final_chart_files = set()
+    
+    # Add charts already in target_plots_dir
+    if os.path.exists(target_plots_dir):
+        for f in os.listdir(target_plots_dir):
+            if f.endswith(('.html', '.png', '.jpg', '.svg')):
+                final_chart_files.add(f)
+                
+    # Copy charts referenced in raw_chart_paths to target_plots_dir if not present
+    for path in raw_chart_paths:
+        if os.path.exists(path):
+            filename = os.path.basename(path)
+            dest_file = os.path.join(target_plots_dir, filename)
+            if not os.path.exists(dest_file) and os.path.abspath(path) != os.path.abspath(dest_file):
+                try:
+                    shutil.copy(path, dest_file)
+                except Exception as copy_err:
+                    logging.warning(f"[run_id={run_id}] Failed copying chart '{path}' to '{dest_file}': {copy_err}")
+            final_chart_files.add(filename)
+
     system_prompt = """
     You are an Expert Data Science Auditor and Executive Technical Reporter.
     Your objective is to write an executive-ready Markdown Exploratory Data Analysis (EDA) report based STRICTLY on the supplied pre-computed evidence and validated claims.
@@ -85,16 +106,13 @@ def reporter_node(state: AgentState):
         logging.warning(f"[run_id={run_id}] LLM report synthesis fallback: {e}")
         report_content = f"# Executive Exploratory Data Analysis Report\n\n*(LLM synthesis offline: {e})*\n\n## Verified Claims\n\n{claims_text}"
 
-    if chart_paths:
+    if final_chart_files:
         report_content += "\n\n## Interactive Visualizations\n\n"
-        for path in sorted(set(chart_paths)):
-            filename = os.path.basename(path)
+        for filename in sorted(final_chart_files):
             if workspace_dir:
                 chart_src = f"/api/plots/{run_id}/plots/{filename}"
-            elif "sandbox" in path:
-                chart_src = f"/api/sandbox/plots/{filename}"
             else:
-                chart_src = f"/api/plots/{filename}"
+                chart_src = f"/api/sandbox/plots/{filename}"
             report_content += f'<iframe src="{chart_src}" width="100%" height="600" style="border:none; margin-bottom: 20px;"></iframe>\n\n'
             
     os.makedirs(os.path.dirname(report_file_path), exist_ok=True)

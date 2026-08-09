@@ -494,7 +494,14 @@ function App() {
             <div className="flex flex-col gap-6">
               {chartPaths.map((path, i) => {
                 const fname = path.split('/').pop().replace('\\', '');
-                const chartUrl = path.startsWith('http') ? path : `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+                let chartUrl;
+                if (path.startsWith('http')) {
+                  chartUrl = path;
+                } else if (path.startsWith('/api/')) {
+                  chartUrl = `${API_URL}${path}`;
+                } else {
+                  chartUrl = runId ? `${API_URL}/api/plots/${runId}/plots/${fname}` : `${API_URL}/api/sandbox/plots/${fname}`;
+                }
                 return (
                   <div key={i} className="bg-card border border-border rounded-xl p-4 flex flex-col h-[550px] w-full">
                     <h3 className="text-xs font-medium mb-2 text-muted-foreground truncate">{fname}</h3>

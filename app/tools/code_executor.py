@@ -112,11 +112,10 @@ def execute_python_code(code:str) -> dict:
                 
                 # If a chart is generated
                 if 'image/png' in output.data:
-                    os.makedirs("sandbox", exist_ok=True)
-                     # Create a filename based on the actual image data!
-                 # Identical images will generate the exact same hash and overwrite each other.
+                    os.makedirs("sandbox/plots", exist_ok=True)
+                    # Create a filename based on the actual image data
                     image_hash = hashlib.md5(output.data['image/png'].encode('utf-8')).hexdigest()[:8]
-                    filename = f"sandbox/chart_{image_hash}.png"
+                    filename = f"sandbox/plots/chart_{image_hash}.png"
                  
                     image_data = base64.b64decode(output.data['image/png'])
                     with open(filename, "wb") as f:
