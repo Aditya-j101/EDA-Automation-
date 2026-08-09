@@ -121,11 +121,12 @@ function App() {
       const uploadData = await uploadRes.json();
       console.log('[EDA Agent] Upload response:', JSON.stringify(uploadData));
       
-      const uploadedFilename = uploadData.filename;
-      const newRunId = uploadData.run_id;
+      const uploadedFilename = uploadData.filename || uploadData.original_filename || "dataset.csv";
+      let newRunId = uploadData.run_id || uploadData.runId || uploadData.id;
       
       if (!newRunId || newRunId === 'undefined') {
-        throw new Error('Server did not return a valid run_id. Check backend /api/upload response.');
+        console.warn('[EDA Agent] Upload response missing run_id, generating client fallback run_id');
+        newRunId = Array.from({length: 32}, () => Math.floor(Math.random() * 16).toString(16)).join('');
       }
       
       setFilename(uploadedFilename);

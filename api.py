@@ -162,6 +162,7 @@ async def upload_file(file: UploadFile = File(...)):
     return {
         "message": "File uploaded successfully",
         "run_id": run_id,
+        "runId": run_id,
         "filename": stored_filename,
         "original_filename": os.path.basename(file.filename),
         "size_bytes": total_bytes
