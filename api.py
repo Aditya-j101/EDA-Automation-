@@ -181,7 +181,9 @@ async def run_pipeline(request: Request, run_id: str = Query(...), filename: Opt
     Runs the LangGraph pipeline asynchronously with multi-tenant isolation,
     SSE heartbeats, disconnect handling, and error propagation.
     """
-    validate_run_id(run_id)
+    # Validate BEFORE SSE stream opens — reject 'undefined', empty, or non-hex run_ids immediately
+    if not run_id or run_id == "undefined" or not RUN_ID_REGEX.match(run_id):
+        raise HTTPException(status_code=400, detail=f"Invalid run_id '{run_id}'. Upload a file first to get a valid run_id.")
     
     workspace_dir = os.path.join("workspaces", run_id)
     data_dir = os.path.join(workspace_dir, "data")

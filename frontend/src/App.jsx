@@ -117,8 +117,14 @@ function App() {
       }
       
       const uploadData = await uploadRes.json();
+      console.log('[EDA Agent] Upload response:', JSON.stringify(uploadData));
+      
       const uploadedFilename = uploadData.filename;
       const newRunId = uploadData.run_id;
+      
+      if (!newRunId || newRunId === 'undefined') {
+        throw new Error('Server did not return a valid run_id. Check backend /api/upload response.');
+      }
       
       setFilename(uploadedFilename);
       setRunId(newRunId);
