@@ -66,8 +66,35 @@ os.makedirs("data", exist_ok=True)
 os.makedirs("reports", exist_ok=True)
 
 app.mount("/api/plots", StaticFiles(directory="workspaces"), name="plots")
-app.mount("/api/sandbox", StaticFiles(directory="sandbox"), name="sandbox_plots")
-app.mount("/sandbox", StaticFiles(directory="sandbox"), name="sandbox_root")
+
+@app.get("/api/sandbox/plots/{filename}")
+@app.get("/sandbox/plots/{filename}")
+@app.get("/sandbox/{filename}")
+async def get_sandbox_plot(filename: str):
+    """
+    Smart plot server: Checks sandbox/plots/ first, then sandbox/, and falls back to searching workspaces/*/plots/
+    to guarantee zero 404 errors regardless of run_id or folder path format.
+    """
+    clean_filename = os.path.basename(filename)
+
+    # 1. Check sandbox/plots/
+    sandbox_plot_path = os.path.join("sandbox", "plots", clean_filename)
+    if os.path.exists(sandbox_plot_path):
+        return FileResponse(sandbox_plot_path)
+
+    # 2. Check root sandbox/
+    sandbox_root_path = os.path.join("sandbox", clean_filename)
+    if os.path.exists(sandbox_root_path):
+        return FileResponse(sandbox_root_path)
+
+    # 3. Search across workspaces/*/plots/
+    if os.path.exists("workspaces"):
+        for workspace_id in os.listdir("workspaces"):
+            ws_plot_path = os.path.join("workspaces", workspace_id, "plots", clean_filename)
+            if os.path.exists(ws_plot_path):
+                return FileResponse(ws_plot_path)
+
+    raise HTTPException(status_code=404, detail=f"Plot file '{clean_filename}' not found.")
 
 
 def validate_run_id(run_id: str):
