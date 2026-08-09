@@ -13,11 +13,21 @@ __pycache__/
 .env
 *.env
 
-# Data and Outputs
-workspaces/
-data/
-sandbox/
-reports/
+# Data and Outputs (Ignore generated files, keep directory structure via .gitkeep)
+workspaces/*
+!workspaces/.gitkeep
+
+data/*
+!data/.gitkeep
+
+sandbox/*
+!sandbox/.gitkeep
+!sandbox/plots/
+sandbox/plots/*
+!sandbox/plots/.gitkeep
+
+reports/*
+!reports/.gitkeep
 
 # IDE and System Files
 .vscode/
