@@ -263,13 +263,15 @@ async def run_pipeline(request: Request, run_id: str = Query(...), filename: Opt
                         break
                         
                     for node_name, node_state in event.items():
-                        status_msg = f"Node '{node_name.upper()}' finished"
+                        is_node_err = "errors" in node_state and bool(node_state["errors"])
+                        node_state_str = "failed" if is_node_err else "success"
+                        status_msg = f"Node '{node_name.upper()}' {node_state_str}"
                         details = ""
                         charts = []
                         
                         if "messages" in node_state and len(node_state["messages"]) > 0:
                             details = node_state["messages"][-1].content
-                        if "errors" in node_state and node_state["errors"]:
+                        if is_node_err:
                             details = f"ERROR: {node_state['errors'][-1]}"
                             
                         plots_dir = os.path.join(workspace_dir, "plots")
@@ -280,6 +282,7 @@ async def run_pipeline(request: Request, run_id: str = Query(...), filename: Opt
                             "run_id": run_id,
                             "node": node_name.upper(),
                             "status": status_msg,
+                            "state": node_state_str,
                             "details": details,
                             "charts": charts
                         })

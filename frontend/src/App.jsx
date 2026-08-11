@@ -141,7 +141,14 @@ function App() {
         
         if (data.node) {
           const nodeUpper = data.node;
-          if (nodeUpper === 'SYSTEM' && data.status.includes('Starting')) return;
+          if (nodeUpper === 'SYSTEM') {
+            if (data.status.includes('Starting')) return;
+            if (data.status.includes('Error') || data.status.includes('Failed')) {
+              setErrorMessage(data.details || data.status);
+              setStatus('error');
+              return;
+            }
+          }
           
           if (data.details) {
             setActiveNodeDetails(data.details);
@@ -149,15 +156,19 @@ function App() {
 
           setNodeStatuses(prev => {
             const newStatuses = { ...prev };
-            if (data.status.toLowerCase().includes('error') || data.status.toLowerCase().includes('failed')) {
+            const isFailed = data.state === 'failed' || data.status.toLowerCase().includes('error') || data.status.toLowerCase().includes('failed') || (data.details && data.details.startsWith('ERROR:'));
+            const isSuccess = data.state === 'success' || data.status.toLowerCase().includes('finished') || data.status.toLowerCase().includes('complete') || data.status.toLowerCase().includes('done') || data.status.toLowerCase().includes('success');
+
+            if (isFailed) {
               newStatuses[nodeUpper] = 'failed';
-            } else if (data.status.toLowerCase().includes('finished') || data.status.toLowerCase().includes('complete')) {
+            } else if (isSuccess) {
               newStatuses[nodeUpper] = 'success';
-              
               const currentIndex = AGENTS.findIndex(a => a.id === nodeUpper);
               if (currentIndex >= 0 && currentIndex < AGENTS.length - 1) {
                 const nextAgent = AGENTS[currentIndex + 1];
-                newStatuses[nextAgent.id] = 'running';
+                if (newStatuses[nextAgent.id] !== 'success' && newStatuses[nextAgent.id] !== 'failed') {
+                  newStatuses[nextAgent.id] = 'running';
+                }
               }
             } else {
               newStatuses[nodeUpper] = 'running';
