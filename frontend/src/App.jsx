@@ -517,38 +517,6 @@ function App() {
           </section>
         )}
 
-        {/* EMBEDDED PLOTLY VISUALIZATIONS SECTION */}
-        {chartPaths.length > 0 && (
-          <section className="mb-10 animate-in slide-in-from-bottom-8 duration-700">
-            <h2 className="text-lg font-display font-semibold mb-4 flex items-center gap-2">
-              <BarChart3 className="text-primary" /> Generated Visualizations ({chartPaths.length})
-            </h2>
-            <div className="flex flex-col gap-6">
-              {chartPaths.map((path, i) => {
-                const fname = path.split('/').pop().replace('\\', '');
-                let chartUrl;
-                if (path.startsWith('http')) {
-                  chartUrl = path;
-                } else if (path.startsWith('/api/')) {
-                  chartUrl = `${API_URL}${path}`;
-                } else {
-                  chartUrl = runId ? `${API_URL}/api/plots/${runId}/plots/${fname}` : `${API_URL}/api/sandbox/plots/${fname}`;
-                }
-                return (
-                  <div key={i} className="bg-card border border-border rounded-xl p-4 flex flex-col h-[550px] w-full shadow-lg">
-                    <h3 className="text-xs font-medium mb-2 text-muted-foreground truncate">{fname}</h3>
-                    <iframe 
-                      src={chartUrl}
-                      className="w-full h-full border-none rounded-lg bg-white"
-                      title={`Chart ${i}`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
         {/* FINAL EXECUTIVE REPORT SECTION */}
         {reportContent && (
           <section className="mb-10 animate-in slide-in-from-bottom-8 duration-700">
@@ -583,6 +551,38 @@ function App() {
                   {reportContent}
                 </ReactMarkdown>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* EMBEDDED PLOTLY VISUALIZATIONS SECTION */}
+        {chartPaths.length > 0 && (
+          <section className="mb-10 animate-in slide-in-from-bottom-8 duration-700">
+            <h2 className="text-lg font-display font-semibold mb-4 flex items-center gap-2">
+              <BarChart3 className="text-primary" /> Generated Visualizations ({chartPaths.length})
+            </h2>
+            <div className="flex flex-col gap-6">
+              {chartPaths.map((path, i) => {
+                const fname = path.split('/').pop().replace('\\', '');
+                let chartUrl;
+                if (path.startsWith('http')) {
+                  chartUrl = path;
+                } else if (path.startsWith('/api/')) {
+                  chartUrl = `${API_URL}${path}`;
+                } else {
+                  chartUrl = runId ? `${API_URL}/api/plots/${runId}/plots/${fname}` : `${API_URL}/api/sandbox/plots/${fname}`;
+                }
+                return (
+                  <div key={i} className="bg-card border border-border rounded-xl p-4 flex flex-col h-[550px] w-full shadow-lg">
+                    <h3 className="text-xs font-medium mb-2 text-muted-foreground truncate">{fname}</h3>
+                    <iframe 
+                      src={chartUrl}
+                      className="w-full h-full border-none rounded-lg bg-white"
+                      title={`Chart ${i}`}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
